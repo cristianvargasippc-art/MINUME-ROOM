@@ -1,0 +1,11 @@
+node_modules/
+dist/
+build/
+.DS_Store
+Thumbs.db
+backend/.env.local
+frontend/.env.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+backend/uploads/

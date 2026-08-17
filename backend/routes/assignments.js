@@ -1,0 +1,397 @@
+const express = require('express');
+const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
+const db = require('../config/db');
+const { authenticate, authorize } = require('../middleware/auth');
+const { buildAssignmentScope } = require('../utils/scope');
+
+const uploadDir = path.join(__dirname, '..', 'uploads');
+fs.mkdirSync(uploadDir, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: uploadDir,
+  filename: (req, file, cb) => {
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+    cb(null, `${uniqueSuffix}-${file.originalname}`);
+  }
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 30 * 1024 * 1024 }
+});
+
+const router = express.Router();
+
+const generateId = () => {
+  const date = new Date();
+  const prefix = [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0')
+  ].join('-');
+
+  return `ASG-${prefix}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`;
+};
+
+router.post('/', authenticate, authorize('secretaria', 'superadmin', 'mesa'), async (req, res) => {
+  const {
+    title,
+    type,
+    description,
+    objective,
+    expectedProduct,
+    deadline,
+    evaluationCriteria,
+    commissionIds,
+    commissionId
+  } = req.body;
+
+  const resolvedCommissionIds = Array.isArray(commissionIds) && commissionIds.length
+    ? commissionIds
+    : commissionId
+      ? [commissionId]
+      : [];
+
+  if (
+    !title ||
+    !type ||
+    !description ||
+    !objective ||
+    !deadline ||
+    !evaluationCriteria ||
+    !resolvedCommissionIds.length
+  ) {
+    return res.status(400).json({ error: 'Faltan campos obligatorios para crear la asignación' });
+  }
+
+  try {
+    const createdAssignments = [];
+
+    for (const commissionIdValue of resolvedCommissionIds) {
+      const numericCommissionId = Number(commissionIdValue);
+
+      if (req.user.role === 'mesa' && req.user.commission_id !== numericCommissionId) {
+        return res.status(403).json({ error: 'No puedes crear tareas fuera de tu comisión' });
+      }
+
+      const assignmentId = generateId();
+      await db.query(
+        `INSERT INTO assignments (
+          assignment_id, title, type, description, objective, expected_product,
+          deadline, evaluation_criteria, status, created_by, commission_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          assignmentId,
+          title,
+          type,
+          description,
+          objective,
+          expectedProduct || 'PDF',
+          deadline,
+          evaluationCriteria,
+          'Asignada',
+          req.user.id,
+          numericCommissionId
+        ]
+      );
+
+      const [rows] = await db.query('SELECT * FROM assignments WHERE assignment_id = ?', [assignmentId]);
+      createdAssignments.push(rows[0]);
+
+      await db.query(
+        'INSERT INTO alerts (code, type, message, severity, recipient_role, related_entity_type, related_entity_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        ['ALT-001', 'NUEVA_ASIGNACION', `Nueva asignación: ${title}`, 'info', 'mesa', 'ASSIGNMENT', assignmentId]
+      );
+    }
+
+    return res.status(201).json(createdAssignments);
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/', authenticate, async (req, res) => {
+  try {
+    const scope = buildAssignmentScope(req.user);
+    const [assignments] = await db.query(
+      `SELECT a.*, u.full_name AS creator_name, c.name AS commission_name, c.code AS commission_code
+       FROM assignments a
+       LEFT JOIN users u ON a.created_by = u.id
+       LEFT JOIN commissions c ON a.commission_id = c.id
+       ${scope.clause}
+       ORDER BY a.created_at DESC`,
+      scope.params
+    );
+
+    return res.json(assignments);
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/:id', authenticate, async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT a.*, u.full_name AS creator_name, c.name AS commission_name, c.code AS commission_code
+       FROM assignments a
+       LEFT JOIN users u ON a.created_by = u.id
+       LEFT JOIN commissions c ON a.commission_id = c.id
+       WHERE a.id = ?`,
+      [req.params.id]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ error: 'Asignación no encontrada' });
+    }
+
+    return res.json(rows[0]);
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/:id/confirm', authenticate, authorize('mesa'), async (req, res) => {
+  try {
+    await db.query(
+      'UPDATE assignments SET status = ? WHERE id = ? AND status = ?',
+      ['En Progreso', req.params.id, 'Asignada']
+    );
+
+    const [rows] = await db.query('SELECT * FROM assignments WHERE id = ?', [req.params.id]);
+    return res.json(rows[0]);
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/:id/submissions', authenticate, async (req, res) => {
+  try {
+    const assignmentId = Number(req.params.id);
+    const [assignmentRows] = await db.query('SELECT * FROM assignments WHERE id = ?', [assignmentId]);
+
+    if (!assignmentRows.length) {
+      return res.status(404).json({ error: 'Asignación no encontrada' });
+    }
+
+    const assignment = assignmentRows[0];
+
+    if (['delegado', 'mesa'].includes(req.user.role) && req.user.commission_id !== assignment.commission_id) {
+      return res.status(403).json({ error: 'No tienes permiso para ver los envíos de esta asignación' });
+    }
+
+    const ownSubmissionOnly = req.user.role === 'delegado';
+    const [submissions] = await db.query(
+      `SELECT
+        s.*,
+        u.full_name AS submitted_by_name,
+        e.id AS evaluation_id,
+        e.total_score,
+        e.verdict,
+        e.strengths,
+        e.improvements,
+        e.recommendations,
+        e.created_at AS evaluated_at,
+        evaluator.full_name AS evaluated_by_name
+       FROM submissions s
+       LEFT JOIN users u ON s.submitted_by = u.id
+       LEFT JOIN evaluations e ON e.id = (
+         SELECT MAX(ev.id)
+         FROM evaluations ev
+         WHERE ev.submission_id = s.id
+       )
+       LEFT JOIN users evaluator ON evaluator.id = e.evaluated_by
+       WHERE s.assignment_id = ?
+       AND s.id IN (
+         SELECT MAX(latest.id)
+         FROM submissions latest
+         WHERE latest.assignment_id = ?
+         GROUP BY latest.submitted_by
+       )
+       ${ownSubmissionOnly ? 'AND s.submitted_by = ?' : ''}
+       ORDER BY s.submitted_at DESC`,
+      ownSubmissionOnly ? [assignmentId, assignmentId, req.user.id] : [assignmentId, assignmentId]
+    );
+
+    return res.json(submissions);
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/:id/submissions', authenticate, upload.single('document'), async (req, res) => {
+  try {
+    const assignmentId = Number(req.params.id);
+    const [assignmentRows] = await db.query('SELECT * FROM assignments WHERE id = ?', [assignmentId]);
+
+    if (!assignmentRows.length) {
+      return res.status(404).json({ error: 'Asignación no encontrada' });
+    }
+
+    const assignment = assignmentRows[0];
+
+    if (['delegado', 'mesa'].includes(req.user.role) && req.user.commission_id !== assignment.commission_id) {
+      return res.status(403).json({ error: 'No puedes enviar un documento para esta asignación' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'Debes seleccionar un archivo para enviar' });
+    }
+
+    const fileUrl = `/uploads/${req.file.filename}`;
+    const [existingSubmissions] = await db.query(
+      'SELECT id FROM submissions WHERE assignment_id = ? AND submitted_by = ? ORDER BY submitted_at DESC LIMIT 1',
+      [assignmentId, req.user.id]
+    );
+
+    let submissionId;
+
+    if (existingSubmissions.length) {
+      submissionId = existingSubmissions[0].id;
+      await db.query(
+        `UPDATE submissions
+         SET file_url = ?, file_name = ?, file_size = ?, status = 'Entregada', submitted_at = NOW(), version = version + 1
+         WHERE id = ?`,
+        [fileUrl, req.file.originalname, req.file.size, submissionId]
+      );
+    } else {
+      const [insertResult] = await db.query(
+        `INSERT INTO submissions (
+          assignment_id, submitted_by, file_url, file_name, file_size, status, submitted_at
+        ) VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+        [assignmentId, req.user.id, fileUrl, req.file.originalname, req.file.size, 'Entregada']
+      );
+      submissionId = insertResult.insertId;
+    }
+
+    await db.query(
+      `UPDATE assignments
+       SET status = CASE
+         WHEN status IN ('Borrador', 'Asignada', 'En Progreso') THEN 'Entregada'
+         ELSE status
+       END
+       WHERE id = ?`,
+      [assignmentId]
+    );
+
+    await db.query(
+      'INSERT INTO alerts (code, type, message, severity, recipient_role, related_entity_type, related_entity_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      ['ALT-002', 'TAREA_ENTREGADA', `Entrega recibida: ${assignment.title}`, 'info', 'mesa', 'ASSIGNMENT', assignment.assignment_id]
+    );
+
+    const [rows] = await db.query('SELECT * FROM submissions WHERE id = ?', [submissionId]);
+    return res.status(201).json(rows[0]);
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/:id/submissions/:submissionId/evaluation', authenticate, authorize('mesa', 'secretaria', 'superadmin'), async (req, res) => {
+  const assignmentId = Number(req.params.id);
+  const submissionId = Number(req.params.submissionId);
+  const { score, verdict, feedback } = req.body;
+
+  const numericScore = Number(score);
+  const resolvedVerdict = verdict === 'return' ? 'En Correccion' : 'Aprobado';
+
+  if (!Number.isFinite(numericScore) || numericScore < 0 || numericScore > 100) {
+    return res.status(400).json({ error: 'La calificación debe estar entre 0 y 100' });
+  }
+
+  try {
+    const [[submission]] = await db.query(
+      `SELECT s.*, a.commission_id, a.assignment_id, a.title
+       FROM submissions s
+       INNER JOIN assignments a ON a.id = s.assignment_id
+       WHERE s.id = ? AND s.assignment_id = ?`,
+      [submissionId, assignmentId]
+    );
+
+    if (!submission) {
+      return res.status(404).json({ error: 'Entrega no encontrada' });
+    }
+
+    if (req.user.role === 'mesa' && req.user.commission_id !== submission.commission_id) {
+      return res.status(403).json({ error: 'No puedes evaluar entregas fuera de tu comisión' });
+    }
+
+    const bandScore = numericScore >= 90 ? 4 : numericScore >= 75 ? 3 : numericScore >= 60 ? 2 : 1;
+    const message = feedback || (resolvedVerdict === 'Aprobado'
+      ? 'Entrega aprobada por la mesa directiva.'
+      : 'La entrega fue devuelta para corrección.');
+
+    const [insertResult] = await db.query(
+      `INSERT INTO evaluations (
+        submission_id,
+        evaluated_by,
+        alignment_score,
+        argument_score,
+        structure_score,
+        originality_score,
+        writing_score,
+        total_score,
+        verdict,
+        strengths,
+        improvements,
+        recommendations
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        submissionId,
+        req.user.id,
+        bandScore,
+        bandScore,
+        bandScore,
+        bandScore,
+        bandScore,
+        numericScore,
+        resolvedVerdict,
+        resolvedVerdict === 'Aprobado' ? message : 'Pendiente de corrección.',
+        resolvedVerdict === 'En Correccion' ? message : 'Mantener el nivel de calidad alcanzado.',
+        message
+      ]
+    );
+
+    await db.query(
+      'UPDATE submissions SET status = ? WHERE id = ?',
+      [resolvedVerdict === 'Aprobado' ? 'Evaluada' : 'Rechazada', submissionId]
+    );
+
+    await db.query(
+      `UPDATE assignments
+       SET status = CASE
+         WHEN ? = 'Aprobado' THEN 'Evaluada'
+         ELSE 'Rechazada'
+       END
+       WHERE id = ?`,
+      [resolvedVerdict, assignmentId]
+    );
+
+    await db.query(
+      'INSERT INTO alerts (code, type, message, severity, recipient_role, related_entity_type, related_entity_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [
+        'ALT-003',
+        resolvedVerdict === 'Aprobado' ? 'TAREA_CALIFICADA' : 'TAREA_DEVUELTA',
+        `${resolvedVerdict === 'Aprobado' ? 'Tarea calificada' : 'Tarea devuelta'}: ${submission.title}`,
+        resolvedVerdict === 'Aprobado' ? 'info' : 'warning',
+        'delegado',
+        'ASSIGNMENT',
+        submission.assignment_id
+      ]
+    );
+
+    const [[evaluation]] = await db.query(
+      `SELECT e.*, u.full_name AS evaluated_by_name
+       FROM evaluations e
+       LEFT JOIN users u ON u.id = e.evaluated_by
+       WHERE e.id = ?`,
+      [insertResult.insertId]
+    );
+
+    return res.status(201).json(evaluation);
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+module.exports = router;
