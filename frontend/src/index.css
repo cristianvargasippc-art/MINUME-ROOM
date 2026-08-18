@@ -1661,3 +1661,146 @@ html[data-theme='dark'] .btn-aurora:hover {
     width: 100%;
   }
 }
+
+/* ============================================================
+   RESPONSIVE — refinamiento móvil/tablet (añadido)
+   Nada de esto afecta al escritorio (>980px).
+   ============================================================ */
+
+/* Evita que imágenes o medios desborden en cualquier tamaño */
+img,
+video,
+canvas {
+  max-width: 100%;
+}
+
+/* ---- Tablet y móvil (<=980px): menú lateral como panel deslizante ---- */
+@media (max-width: 980px) {
+  .shell-main {
+    padding-top: 3.4rem; /* deja aire para el botón flotante */
+  }
+
+  /* Botón de menú flotante, siempre accesible por encima del panel */
+  .mobile-nav-toggle {
+    display: block;
+    position: fixed;
+    top: 0.7rem;
+    right: 0.7rem;
+    z-index: 130;
+    margin: 0;
+  }
+
+  .mobile-nav-toggle .btn {
+    box-shadow: 0 10px 26px rgba(4, 24, 54, 0.28);
+  }
+
+  /* Panel lateral: se desliza desde la izquierda como drawer */
+  .shell-sidebar {
+    padding: 0;
+  }
+
+  .shell-sidebar.is-open {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: min(86vw, 330px);
+    z-index: 120;
+    padding: 0.9rem;
+    overflow-y: auto;
+    background: #06182f;
+    box-shadow: 0 30px 90px rgba(0, 0, 0, 0.5);
+    animation: drawerIn 0.22s ease;
+  }
+
+  @keyframes drawerIn {
+    from { transform: translateX(-100%); }
+    to   { transform: translateX(0); }
+  }
+
+  /* En tablet, las estadísticas de detalle lucen mejor a 2 columnas */
+  .detail-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Los botones de encabezado ocupan el ancho cuando la cabecera se apila */
+  .page-heading > .btn,
+  .page-heading__actions,
+  .page-heading__actions .btn {
+    width: 100%;
+  }
+}
+
+/* ---- Teléfonos (<=600px): densidad, tipografía y sin desbordes ---- */
+@media (max-width: 600px) {
+  :root {
+    --radius-lg: 20px;
+    --radius-md: 16px;
+  }
+
+  body {
+    overflow-x: hidden;
+  }
+
+  .shell-main {
+    padding: 3.2rem 0.85rem 1.6rem;
+  }
+
+  /* Títulos grandes reducidos para que no rompan la línea */
+  .page-heading h1 { font-size: 1.5rem; }
+  .metric-value    { font-size: 1.9rem; }
+  .preview-banner h2 { font-size: 1.6rem; }
+  .status-tile strong { font-size: 1.6rem; }
+  .auth-card h2    { font-size: 1.6rem; }
+
+  /* Una sola columna para las estadísticas en teléfono */
+  .detail-stat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Rejillas auto-fit: baja el mínimo para no forzar scroll horizontal */
+  .status-grid,
+  .classroom-grid,
+  .dashboard-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  /* Tarjetas y paneles con menos padding interno */
+  .glass-card,
+  .auth-card {
+    padding: 1.1rem;
+  }
+
+  /* Palabras/URLs largas no desbordan la tarjeta */
+  .glass-card,
+  .sidebar-intro,
+  .auth-card {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  /* Objetivo táctil cómodo en botones e inputs */
+  .btn {
+    min-height: 46px;
+    padding: 0.85rem 1rem;
+  }
+
+  .input {
+    padding: 0.85rem 0.9rem;
+  }
+}
+
+/* ---- Teléfonos pequeños (<=400px) ---- */
+@media (max-width: 400px) {
+  .shell-main {
+    padding-left: 0.7rem;
+    padding-right: 0.7rem;
+  }
+
+  .metric-value { font-size: 1.7rem; }
+
+  .theme-switch,
+  .segmented-control {
+    grid-template-columns: 1fr; /* controles apilados, más fáciles de tocar */
+  }
+}
