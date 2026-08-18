@@ -31,6 +31,10 @@ const app = express();
 const httpServer = createServer(app);
 const port = Number(process.env.PORT || 3000);
 
+// Detrás del proxy de Hostinger: confía en 1 salto para que el rate limit
+// y los logs usen la IP real del cliente (X-Forwarded-For) y no la del proxy.
+app.set("trust proxy", 1);
+
 const allowedOrigins = (process.env.APP_URL || "http://localhost:3000")
   .split(",")
   .map((origin) => origin.trim().replace(/\/$/, ""))
@@ -77,15 +81,17 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use("/uploads", express.static(join(__dirname, "..", "uploads")));
 
-app.use(
-  rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: process.env.NODE_ENV === "production" ? 100 : 150,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: "Demasiadas solicitudes, intente más tarde" },
-  })
-);
+// Limitador SOLO para la API (no para archivos estáticos ni Socket.IO).
+// El chequeo de salud queda excluido para no gastar cupo con monitoreo.
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: process.env.NODE_ENV === "production" ? 500 : 1000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.path === "/health",
+  message: { error: "Demasiadas solicitudes, intente más tarde" },
+});
+app.use("/api", apiLimiter);
 
 const io = new Server(httpServer, {
   cors: {
