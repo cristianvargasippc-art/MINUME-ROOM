@@ -8,7 +8,19 @@
     "node": "20.x"
   },
   "scripts": {
-    "build": "npm --prefix backend install --omit=dev",
+    "build": "echo \"Sin paso de build: el frontend ya viene compilado en backend/public\"",
     "start": "node backend/src/server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.4.1",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "pg": "^8.11.3",
+    "socket.io": "^4.8.1"
   }
 }
