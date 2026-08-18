@@ -62,7 +62,7 @@ router.post("/", authenticate, authorize("secretaria", "superadmin", "mesa"), as
         [assignmentId, title, type, description, objective, expectedProduct || "PDF", deadline, evaluationCriteria, "Asignada", req.user.id, numericCommissionId]
       );
 
-      const [rows] = await db.query("SELECT * FROM assignments WHERE assignment_id = $1", [assignmentId]);
+      const { rows } = await db.query("SELECT * FROM assignments WHERE assignment_id = $1", [assignmentId]);
       createdAssignments.push(rows[0]);
 
       await db.query(
@@ -80,7 +80,7 @@ router.post("/", authenticate, authorize("secretaria", "superadmin", "mesa"), as
 router.get("/", authenticate, async (req, res) => {
   try {
     const scope = buildAssignmentScope(req.user);
-    const [assignments] = await db.query(
+    const { rows: assignments } = await db.query(
       `SELECT a.*, u.full_name AS creator_name, c.name AS commission_name, c.code AS commission_code
        FROM assignments a
        LEFT JOIN users u ON a.created_by = u.id
@@ -97,7 +97,7 @@ router.get("/", authenticate, async (req, res) => {
 
 router.get("/:id", authenticate, async (req, res) => {
   try {
-    const [rows] = await db.query(
+    const { rows } = await db.query(
       `SELECT a.*, u.full_name AS creator_name, c.name AS commission_name, c.code AS commission_code
        FROM assignments a
        LEFT JOIN users u ON a.created_by = u.id
@@ -119,7 +119,7 @@ router.get("/:id", authenticate, async (req, res) => {
 router.post("/:id/confirm", authenticate, authorize("mesa"), async (req, res) => {
   try {
     await db.query("UPDATE assignments SET status = $1 WHERE id = $2 AND status = $3", ["En Progreso", req.params.id, "Asignada"]);
-    const [rows] = await db.query("SELECT * FROM assignments WHERE id = $1", [req.params.id]);
+    const { rows } = await db.query("SELECT * FROM assignments WHERE id = $1", [req.params.id]);
     return res.json(rows[0]);
   } catch (error) {
     return res.status(500).json({ error: error.message });
@@ -129,7 +129,7 @@ router.post("/:id/confirm", authenticate, authorize("mesa"), async (req, res) =>
 router.get("/:id/submissions", authenticate, async (req, res) => {
   try {
     const assignmentId = Number(req.params.id);
-    const [assignmentRows] = await db.query("SELECT * FROM assignments WHERE id = $1", [assignmentId]);
+    const { rows: assignmentRows } = await db.query("SELECT * FROM assignments WHERE id = $1", [assignmentId]);
 
     if (!assignmentRows.length) {
       return res.status(404).json({ error: "Asignación no encontrada" });
@@ -142,7 +142,7 @@ router.get("/:id/submissions", authenticate, async (req, res) => {
     }
 
     const ownSubmissionOnly = req.user.role === "delegado";
-    const [submissions] = await db.query(
+    const { rows: submissions } = await db.query(
       `SELECT
         s.*,
         u.full_name AS submitted_by_name,
@@ -183,7 +183,7 @@ router.get("/:id/submissions", authenticate, async (req, res) => {
 router.post("/:id/submissions", authenticate, upload.single("document"), async (req, res) => {
   try {
     const assignmentId = Number(req.params.id);
-    const [assignmentRows] = await db.query("SELECT * FROM assignments WHERE id = $1", [assignmentId]);
+    const { rows: assignmentRows } = await db.query("SELECT * FROM assignments WHERE id = $1", [assignmentId]);
 
     if (!assignmentRows.length) {
       return res.status(404).json({ error: "Asignación no encontrada" });
@@ -200,7 +200,7 @@ router.post("/:id/submissions", authenticate, upload.single("document"), async (
     }
 
     const fileUrl = `/uploads/${req.file.filename}`;
-    const [existingSubmissions] = await db.query(
+    const { rows: existingSubmissions } = await db.query(
       "SELECT id FROM submissions WHERE assignment_id = $1 AND submitted_by = $2 ORDER BY submitted_at DESC LIMIT 1",
       [assignmentId, req.user.id]
     );
@@ -214,7 +214,7 @@ router.post("/:id/submissions", authenticate, upload.single("document"), async (
         [fileUrl, req.file.originalname, req.file.size, submissionId]
       );
     } else {
-      const [insertResult] = await db.query(
+      const insertResult = await db.query(
         `INSERT INTO submissions (assignment_id, submitted_by, file_url, file_name, file_size, status, submitted_at)
          VALUES ($1, $2, $3, $4, $5, $6, NOW()) RETURNING id`,
         [assignmentId, req.user.id, fileUrl, req.file.originalname, req.file.size, "Entregada"]
@@ -232,7 +232,7 @@ router.post("/:id/submissions", authenticate, upload.single("document"), async (
       ["ALT-002", "TAREA_ENTREGADA", `Entrega recibida: ${assignment.title}`, "info", "mesa", "ASSIGNMENT", assignment.assignment_id]
     );
 
-    const [rows] = await db.query("SELECT * FROM submissions WHERE id = $1", [submissionId]);
+    const { rows } = await db.query("SELECT * FROM submissions WHERE id = $1", [submissionId]);
     return res.status(201).json(rows[0]);
   } catch (error) {
     return res.status(500).json({ error: error.message });
@@ -252,7 +252,7 @@ router.post("/:id/submissions/:submissionId/evaluation", authenticate, authorize
   }
 
   try {
-    const [[submission]] = await db.query(
+    const { rows: [submission] } = await db.query(
       `SELECT s.*, a.commission_id, a.assignment_id, a.title
        FROM submissions s
        INNER JOIN assignments a ON a.id = s.assignment_id
@@ -271,7 +271,7 @@ router.post("/:id/submissions/:submissionId/evaluation", authenticate, authorize
     const bandScore = numericScore >= 90 ? 4 : numericScore >= 75 ? 3 : numericScore >= 60 ? 2 : 1;
     const message = feedback || (resolvedVerdict === "Aprobado" ? "Entrega aprobada por la mesa directiva." : "La entrega fue devuelta para corrección.");
 
-    const [insertResult] = await db.query(
+    const insertResult = await db.query(
       `INSERT INTO evaluations (
         submission_id, evaluated_by,
         alignment_score, argument_score, structure_score, originality_score, writing_score,
@@ -306,7 +306,7 @@ router.post("/:id/submissions/:submissionId/evaluation", authenticate, authorize
       ]
     );
 
-    const [[evaluation]] = await db.query(
+    const { rows: [evaluation] } = await db.query(
       `SELECT e.*, u.full_name AS evaluated_by_name
        FROM evaluations e
        LEFT JOIN users u ON u.id = e.evaluated_by

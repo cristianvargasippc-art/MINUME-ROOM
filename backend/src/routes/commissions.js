@@ -15,7 +15,7 @@ const buildCommissionScope = (user) => {
 router.get("/", authenticate, async (req, res) => {
   try {
     const scope = buildCommissionScope(req.user);
-    const [commissions] = await db.query(
+    const { rows: commissions } = await db.query(
       `SELECT
         c.*,
         COUNT(DISTINCT u.id) AS members_count,
@@ -43,7 +43,7 @@ router.post("/", authenticate, authorize("superadmin", "secretaria"), async (req
   }
 
   try {
-    const [[maxRow]] = await db.query("SELECT COALESCE(MAX(id), 0) AS maxId FROM commissions");
+    const { rows: [maxRow] } = await db.query("SELECT COALESCE(MAX(id), 0) AS maxId FROM commissions");
     const nextId = maxRow.maxid + 1;
 
     await db.query(
@@ -52,7 +52,7 @@ router.post("/", authenticate, authorize("superadmin", "secretaria"), async (req
       [nextId, name, code, section, chairName, description, theme || "sunrise", req.user.id]
     );
 
-    const [rows] = await db.query("SELECT * FROM commissions WHERE id = $1", [nextId]);
+    const { rows } = await db.query("SELECT * FROM commissions WHERE id = $1", [nextId]);
     return res.status(201).json(rows[0]);
   } catch (error) {
     return res.status(500).json({ error: error.message });
@@ -68,7 +68,7 @@ router.get("/:id", authenticate, async (req, res) => {
       return res.status(403).json({ error: "No tienes acceso a esta comisión" });
     }
 
-    const [[commission]] = await db.query(
+    const { rows: [commission] } = await db.query(
       `SELECT
         c.*,
         COUNT(DISTINCT u.id) AS members_count,
@@ -85,7 +85,7 @@ router.get("/:id", authenticate, async (req, res) => {
       return res.status(404).json({ error: "Comisión no encontrada" });
     }
 
-    const [people] = await db.query(
+    const { rows: people } = await db.query(
       `SELECT id, full_name, email, role, is_active, last_login, created_at
        FROM users
        WHERE commission_id = $1
@@ -93,7 +93,7 @@ router.get("/:id", authenticate, async (req, res) => {
       [commissionId]
     );
 
-    const [assignments] = await db.query(
+    const { rows: assignments } = await db.query(
       `SELECT a.*, u.full_name AS creator_name
        FROM assignments a
        LEFT JOIN users u ON u.id = a.created_by
@@ -102,7 +102,7 @@ router.get("/:id", authenticate, async (req, res) => {
       [commissionId]
     );
 
-    const [recentActivity] = await db.query(
+    const { rows: recentActivity } = await db.query(
       `SELECT
         'assignment' AS item_type,
         a.id AS item_id,
@@ -147,7 +147,7 @@ router.post("/:id/people", authenticate, authorize("superadmin", "secretaria", "
       [email, tempPasswordHash, fullName, role, commissionId]
     );
 
-    const [rows] = await db.query(
+    const { rows } = await db.query(
       `SELECT id, full_name, email, role, commission_id, is_active, created_at
        FROM users WHERE email = $1`,
       [email]

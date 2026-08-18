@@ -54,7 +54,7 @@ router.post("/register", async (req, res) => {
   }
 
   try {
-    const [existingUsers] = await db.query("SELECT id FROM users WHERE email = $1", [email]);
+    const { rows: existingUsers } = await db.query("SELECT id FROM users WHERE email = $1", [email]);
 
     if (existingUsers.length) {
       return res.status(409).json({ error: "Ya existe una cuenta con ese correo" });
@@ -63,12 +63,12 @@ router.post("/register", async (req, res) => {
     let resolvedCommissionId = commissionId ? Number(commissionId) : null;
 
     if (!resolvedCommissionId) {
-      const [commissions] = await db.query("SELECT id FROM commissions WHERE status = $1 ORDER BY id ASC LIMIT 1", ["Activa"]);
+      const { rows: commissions } = await db.query("SELECT id FROM commissions WHERE status = $1 ORDER BY id ASC LIMIT 1", ["Activa"]);
       resolvedCommissionId = commissions[0]?.id || null;
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
-    const [insertResult] = await db.query(
+    const insertResult = await db.query(
       `INSERT INTO users (email, password, full_name, role, commission_id, is_active)
        VALUES ($1, $2, $3, 'delegado', $4, TRUE)
        RETURNING id`,
@@ -76,7 +76,7 @@ router.post("/register", async (req, res) => {
     );
 
     const userId = insertResult.rows[0].id;
-    const [[user]] = await db.query("SELECT * FROM users WHERE id = $1", [userId]);
+    const { rows: [user] } = await db.query("SELECT * FROM users WHERE id = $1", [userId]);
 
     await db.query(
       "INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details, ip_address) VALUES ($1, $2, $3, $4, $5, $6)",
@@ -106,7 +106,7 @@ router.post("/login", async (req, res) => {
   }
 
   try {
-    const [users] = await db.query("SELECT * FROM users WHERE email = $1", [email]);
+    const { rows: users } = await db.query("SELECT * FROM users WHERE email = $1", [email]);
 
     if (!users.length) {
       return res.status(401).json({ error: "Credenciales invalidas" });
@@ -146,7 +146,7 @@ router.post("/login", async (req, res) => {
 
 router.get("/profile", authenticate, async (req, res) => {
   try {
-    const [users] = await db.query(
+    const { rows: users } = await db.query(
       "SELECT id, email, full_name, role, commission_id, profile_image_url, is_active, last_login, created_at FROM users WHERE id = $1",
       [req.user.id]
     );
@@ -166,7 +166,7 @@ router.patch("/profile", authenticate, async (req, res) => {
 
   try {
     await db.query("UPDATE users SET full_name = $1 WHERE id = $2", [fullName.trim(), req.user.id]);
-    const [[user]] = await db.query(
+    const { rows: [user] } = await db.query(
       "SELECT id, email, full_name, role, commission_id, profile_image_url FROM users WHERE id = $1",
       [req.user.id]
     );
@@ -186,7 +186,7 @@ router.post("/profile/image", authenticate, avatarUpload.single("avatar"), async
     const profileImageUrl = `/uploads/profiles/${req.file.filename}`;
     await db.query("UPDATE users SET profile_image_url = $1 WHERE id = $2", [profileImageUrl, req.user.id]);
 
-    const [[user]] = await db.query(
+    const { rows: [user] } = await db.query(
       "SELECT id, email, full_name, role, commission_id, profile_image_url FROM users WHERE id = $1",
       [req.user.id]
     );

@@ -10,7 +10,7 @@ export const authenticate = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const [users] = await db.query(
+    const { rows: users } = await db.query(
       "SELECT id, email, full_name, role, commission_id, is_active FROM users WHERE id = $1 AND is_active = TRUE",
       [decoded.id]
     );
