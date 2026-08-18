@@ -94,6 +94,7 @@ button {
 
 .shell-main {
   min-width: 0;
+  width: 100%;
   padding: 1.4rem 1.4rem 2rem;
 }
 
