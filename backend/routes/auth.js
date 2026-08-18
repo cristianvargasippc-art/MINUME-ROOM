@@ -123,11 +123,15 @@ router.post('/login', async (req, res) => {
       return res.status(403).json({ error: 'Cuenta suspendida' });
     }
 
-    await db.query('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
-    await db.query(
-      'INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)',
-      [user.id, 'LOGIN', 'USER', String(user.id), 'Inicio de sesión exitoso', req.ip || 'unknown']
-    );
+    await db.query('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]).catch(() => {});
+    try {
+      await db.query(
+        'INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)',
+        [user.id, 'LOGIN', 'USER', String(user.id), 'Inicio de sesión exitoso', req.ip || 'unknown']
+      );
+    } catch (auditError) {
+      console.warn('No se pudo registrar audit_log:', auditError.message);
+    }
 
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
