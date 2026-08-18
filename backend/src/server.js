@@ -207,8 +207,11 @@ app.get("*", (_req, res) => {
 
 app.use(errorHandler);
 
+let activeServer = null;
+
 function startServer(currentPort) {
   const server = httpServer.listen(currentPort, () => {
+    activeServer = server;
     console.log(`MINUME XVII backend corriendo en http://localhost:${currentPort}`);
     console.log(`Entorno: ${process.env.NODE_ENV || "development"}`);
     console.log(`Frontend URL: ${process.env.APP_URL || "http://localhost:3000"}`);
@@ -232,7 +235,10 @@ function startServer(currentPort) {
 
 const gracefulShutdown = async (signal) => {
   console.log(`\n${signal} recibido. Cerrando servidor...`);
-  server.close(async () => {
+  if (!activeServer) {
+    process.exit(0);
+  }
+  activeServer.close(async () => {
     console.log("Servidor HTTP cerrado.");
     try {
       await pool.end();
@@ -249,9 +255,11 @@ const gracefulShutdown = async (signal) => {
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
+// El servidor escucha primero para que el proxy de Hostinger siempre tenga
+// un backend vivo. Si la base de datos falla, la web sigue respondiendo y el
+// error queda en los logs en vez de tumbar el proceso (que causaba un 403).
+startServer(port);
+
 bootstrapDatabase()
-  .then(() => startServer(port))
-  .catch((error) => {
-    console.error("No se pudo iniciar el backend:", error);
-    process.exit(1);
-  });
+  .then(() => console.log("Base de datos inicializada correctamente"))
+  .catch((error) => console.error("Error al inicializar la base de datos:", error.message));

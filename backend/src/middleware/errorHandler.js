@@ -9,3 +9,5 @@ export const errorHandler = (error, _req, res, _next) => {
     error: "Ha ocurrido un error interno del servidor",
   });
 };
+
+export default errorHandler;

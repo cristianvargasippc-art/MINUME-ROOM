@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import path from "path";
 import fs from "fs";
 import multer from "multer";
+import { fileURLToPath } from "url";
 import { db } from "../db.js";
 import { authenticate } from "../middleware/auth.js";
 

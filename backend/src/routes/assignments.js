@@ -2,6 +2,7 @@ import express from "express";
 import path from "path";
 import fs from "fs";
 import multer from "multer";
+import { fileURLToPath } from "url";
 import { db } from "../db.js";
 import { authenticate, authorize } from "../middleware/auth.js";
 import { buildAssignmentScope } from "../utils/scope.js";
