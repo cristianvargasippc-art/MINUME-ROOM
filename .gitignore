@@ -9,3 +9,14 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 backend/uploads/
+*.log
+backend/*.log
+frontend/*.log
+frontend/build/
+frontend/.env
+backend/.env
+cloudflared.exe
+*.exe
+ngrok.zip
+gh.zip
+gh.msi
