@@ -3,24 +3,27 @@ import 'dotenv/config';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
-let dbUrl = process.env.DATABASE_URL || '';
-if (dbUrl && !dbUrl.includes('connection_limit')) {
-  const separator = dbUrl.includes('?') ? '&' : '?';
-  dbUrl += `${separator}connection_limit=10&pool_timeout=30`;
-}
+const dbUrl = process.env.DATABASE_URL || '';
+
+// Opciones del pool dimensionadas para picos de concurrencia (evento).
+// DB_POOL_MAX permite ajustar el máximo de conexiones sin tocar código.
+// Con el Transaction Pooler de Supabase (puerto 6543) puedes subirlo.
+const commonPool = {
+  ssl: isProduction ? { rejectUnauthorized: false } : false,
+  max: Number(process.env.DB_POOL_MAX || 15),
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 8000,
+};
 
 const poolConfig = dbUrl
-  ? { connectionString: dbUrl, ssl: isProduction ? { rejectUnauthorized: false } : false }
+  ? { connectionString: dbUrl, ...commonPool }
   : {
       host: process.env.DB_HOST,
       port: Number(process.env.DB_PORT || 5432),
       user: process.env.DB_USER,
       password: process.env.DB_PASSWORD,
       database: process.env.DB_NAME,
-      ssl: isProduction ? { rejectUnauthorized: false } : false,
-      max: 20,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 5000,
+      ...commonPool,
     };
 
 export const pool = new Pool(poolConfig);
