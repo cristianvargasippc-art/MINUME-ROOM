@@ -1738,10 +1738,6 @@ canvas {
     --radius-md: 16px;
   }
 
-  body {
-    overflow-x: hidden;
-  }
-
   .shell-main {
     padding: 3.2rem 0.85rem 1.6rem;
   }
@@ -1907,5 +1903,60 @@ canvas {
   .auth-tools button {
     padding: 0.5rem 0.7rem;
     font-size: 0.75rem;
+  }
+}
+
+/* ============================================================
+   BLINDAJE CROSS-DISPOSITIVO
+   Móvil, tablet, laptop, MacBook y monitores grandes.
+   ============================================================ */
+
+/* Nunca scroll horizontal en ninguna vista. overflow-x: clip recorta
+   el desborde SIN crear contenedor de scroll, así que NO rompe los
+   elementos sticky (barra lateral y nav superior siguen funcionando). */
+html,
+body {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+/* Contenedores principales: pueden encogerse y nunca fuerzan el ancho */
+.shell-main,
+.home-page,
+.auth-page,
+.dashboard-page,
+.assignment-page {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Elementos que suelen desbordar: se ajustan al ancho disponible */
+img,
+video,
+canvas,
+table,
+pre {
+  max-width: 100%;
+}
+
+/* Tablas anchas: se desplazan DENTRO de su caja, no en la página */
+.table-wrap {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Texto/URLs largos no rompen tarjetas ni columnas */
+.glass-card,
+.commission-card,
+.classroom-panel {
+  overflow-wrap: anywhere;
+}
+
+/* Monitores grandes (MacBook/escritorio ancho): centra el contenido
+   del área privada para que no quede disperso a la izquierda. */
+@media (min-width: 1700px) {
+  .shell-main {
+    max-width: 1680px;
+    margin-inline: auto;
   }
 }
