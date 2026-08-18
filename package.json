@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "MINUME XVII - Plataforma académica full stack",
+  "main": "index.js",
   "engines": {
     "node": "20.x"
   },
