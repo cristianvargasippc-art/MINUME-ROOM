@@ -1,0 +1,20 @@
+{
+  "name": "minume-xvii",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "postinstall": "npm --prefix backend install && npm --prefix frontend install",
+    "build:backend": "npm --prefix backend run build",
+    "build:frontend": "npm --prefix frontend run build",
+    "build": "npm run build:frontend && npm run build:backend && node scripts/copy-dist.js",
+    "start": "npm --prefix backend start",
+    "dev": "concurrently \"npm --prefix backend run dev\" \"npm --prefix frontend run start\""
+  },
+  "engines": {
+    "node": "20.x"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

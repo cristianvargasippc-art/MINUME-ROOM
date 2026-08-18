@@ -1,27 +1,11 @@
-const db = require('./db');
+import { db } from "../db.js";
 
 const seedCommissions = [
-  {
-    id: 1,
-    name: 'Comisión de Educación',
-    code: 'EDU-MINUME',
-    section: 'Aula 01',
-    chair_name: 'Mesa Directiva de Educación',
-    description: 'Espacio para debate, seguimiento y entregas de la Comisión de Educación.',
-    theme: 'sunrise'
-  },
-  {
-    id: 2,
-    name: 'Comisión de Cooperación',
-    code: 'COOP-MINUME',
-    section: 'Aula 02',
-    chair_name: 'Mesa Directiva de Cooperación',
-    description: 'Espacio para acuerdos, tareas y organización de la Comisión de Cooperación.',
-    theme: 'ocean'
-  }
+  { id: 1, name: "Comisión de Educación", code: "EDU-MINUME", section: "Aula 01", chair_name: "Mesa Directiva de Educación", description: "Espacio para debate, seguimiento y entregas de la Comisión de Educación.", theme: "sunrise" },
+  { id: 2, name: "Comisión de Cooperación", code: "COOP-MINUME", section: "Aula 02", chair_name: "Mesa Directiva de Cooperación", description: "Espacio para acuerdos, tareas y organización de la Comisión de Cooperación.", theme: "ocean" },
 ];
 
-const bootstrapDatabase = async () => {
+export const bootstrapDatabase = async () => {
   await db.query(`
     CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,
@@ -39,13 +23,12 @@ const bootstrapDatabase = async () => {
   `);
 
   const profileImageExists = await db.query(`
-    SELECT column_name 
-    FROM information_schema.columns 
+    SELECT column_name FROM information_schema.columns
     WHERE table_name = 'users' AND column_name = 'profile_image_url'
   `);
 
   if (!profileImageExists.rows.length) {
-    await db.query('ALTER TABLE users ADD COLUMN profile_image_url VARCHAR(500) DEFAULT NULL');
+    await db.query("ALTER TABLE users ADD COLUMN profile_image_url VARCHAR(500) DEFAULT NULL");
   }
 
   await db.query(`
@@ -69,25 +52,9 @@ const bootstrapDatabase = async () => {
       `INSERT INTO commissions (id, name, code, section, chair_name, description, theme, status, created_by)
        VALUES ($1, $2, $3, $4, $5, $6, $7, 'Activa', 1)
        ON CONFLICT (id) DO UPDATE SET
-         name = EXCLUDED.name,
-         code = EXCLUDED.code,
-         section = EXCLUDED.section,
-         chair_name = EXCLUDED.chair_name,
-         description = EXCLUDED.description,
-         theme = EXCLUDED.theme`,
-      [
-        commission.id,
-        commission.name,
-        commission.code,
-        commission.section,
-        commission.chair_name,
-        commission.description,
-        commission.theme
-      ]
+         name = EXCLUDED.name, code = EXCLUDED.code, section = EXCLUDED.section,
+         chair_name = EXCLUDED.chair_name, description = EXCLUDED.description, theme = EXCLUDED.theme`,
+      [commission.id, commission.name, commission.code, commission.section, commission.chair_name, commission.description, commission.theme]
     );
   }
-};
-
-module.exports = {
-  bootstrapDatabase
 };
