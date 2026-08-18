@@ -1,16 +1,15 @@
-const mysql = require('mysql2/promise');
+const { Pool } = require('pg');
 require('dotenv').config();
 
 const dbConfig = {
-  host: process.env.DB_HOST || process.env.MYSQLHOST || process.env.RAILWAY_MYSQL_HOST || 'localhost',
-  port: Number(process.env.DB_PORT || process.env.MYSQLPORT || process.env.RAILWAY_MYSQL_PORT || 3306),
-  user: process.env.DB_USER || process.env.MYSQLUSER || process.env.RAILWAY_MYSQL_USER || 'root',
-  password: process.env.DB_PASSWORD || process.env.MYSQLPASSWORD || process.env.RAILWAY_MYSQL_PASSWORD || '',
-  database: process.env.DB_NAME || process.env.MYSQLDATABASE || process.env.RAILWAY_MYSQL_DATABASE || 'minume_xvii',
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-  timezone: 'Z'
+  host: process.env.DB_HOST || process.env.PGHOST || process.env.RAILWAY_PGHOST || 'localhost',
+  port: Number(process.env.DB_PORT || process.env.PGPORT || process.env.RAILWAY_PGPORT || 5432),
+  user: process.env.DB_USER || process.env.PGUSER || process.env.RAILWAY_PGUSER || 'postgres',
+  password: process.env.DB_PASSWORD || process.env.PGPASSWORD || process.env.RAILWAY_PGPASSWORD || '',
+  database: process.env.DB_NAME || process.env.PGDATABASE || process.env.RAILWAY_PGDATABASE || 'minume_xvii',
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
 };
 
 const sslMode = (process.env.DB_SSL || '').toLowerCase();
@@ -20,6 +19,12 @@ if (sslMode === 'true' || sslMode === '1' || sslMode === 'required' || sslMode =
   };
 }
 
-const db = mysql.createPool(dbConfig);
+const pool = new Pool(dbConfig);
+
+const db = {
+  query: (text, params) => pool.query(text, params),
+  getClient: () => pool.connect(),
+  end: () => pool.end()
+};
 
 module.exports = db;

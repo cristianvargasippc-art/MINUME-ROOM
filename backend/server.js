@@ -110,9 +110,7 @@ app.set('io', io);
 
 app.get('/health', async (req, res) => {
   try {
-    const connection = await db.getConnection();
-    await connection.ping();
-    connection.release();
+    await db.query('SELECT 1');
 
     return res.json({
       status: 'OK',

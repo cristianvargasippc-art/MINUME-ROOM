@@ -1,5 +1,5 @@
 const db = require('./db');
- 
+
 const seedCommissions = [
   {
     id: 1,
@@ -20,7 +20,7 @@ const seedCommissions = [
     theme: 'ocean'
   }
 ];
- 
+
 const seedUsers = [
   { email: 'superadmin@minume-xvii.edu.do', full_name: 'Superadmin MINUME XVII', role: 'superadmin', commission_id: null },
   { email: 'secretaria@minume-xvii.edu.do', full_name: 'Secretaria de Control y Calidad', role: 'secretaria', commission_id: null },
@@ -29,116 +29,115 @@ const seedUsers = [
   { email: 'delegado1@minume-xvii.edu.do', full_name: 'Ana Maria Lopez', role: 'delegado', commission_id: 1 },
   { email: 'delegado2@minume-xvii.edu.do', full_name: 'Carlos Perez', role: 'delegado', commission_id: 1 }
 ];
- 
+
 const BCRYPT_PASSWORD = '$2a$12$TyswpA71t9/OiFwiAn40ieiwCVzXd9jsjs.HCBbqK2KuWLmgt9B8i';
- 
+
 const bootstrapDatabase = async () => {
   await db.query(`
     CREATE TABLE IF NOT EXISTS users (
-      id INT AUTO_INCREMENT PRIMARY KEY,
+      id BIGSERIAL PRIMARY KEY,
       email VARCHAR(255) NOT NULL UNIQUE,
       password VARCHAR(255) NOT NULL,
       full_name VARCHAR(255) NOT NULL,
-      role ENUM('superadmin', 'secretaria', 'mesa', 'delegado') NOT NULL,
-      commission_id INT DEFAULT NULL,
+      role VARCHAR(50) NOT NULL CHECK (role IN ('superadmin', 'secretaria', 'mesa', 'delegado')),
+      commission_id BIGINT DEFAULT NULL,
       profile_image_url VARCHAR(500) DEFAULT NULL,
       is_active BOOLEAN DEFAULT TRUE,
-      last_login DATETIME DEFAULT NULL,
+      last_login TIMESTAMP DEFAULT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
- 
-  const [profileImageColumns] = await db.query(
-    `SELECT COLUMN_NAME
-     FROM INFORMATION_SCHEMA.COLUMNS
-     WHERE TABLE_SCHEMA = DATABASE()
-       AND TABLE_NAME = 'users'
-       AND COLUMN_NAME = 'profile_image_url'`
-  );
- 
-  if (!profileImageColumns.length) {
-    await db.query('ALTER TABLE users ADD COLUMN profile_image_url VARCHAR(500) DEFAULT NULL AFTER commission_id');
+
+  const profileImageCheck = await db.query(`
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = current_schema() 
+      AND table_name = 'users' 
+      AND column_name = 'profile_image_url'
+  `);
+
+  if (profileImageCheck.rowCount === 0) {
+    await db.query('ALTER TABLE users ADD COLUMN profile_image_url VARCHAR(500) DEFAULT NULL');
   }
- 
+
   await db.query(`
     CREATE TABLE IF NOT EXISTS commissions (
-      id INT PRIMARY KEY,
+      id BIGINT PRIMARY KEY,
       name VARCHAR(150) NOT NULL,
       code VARCHAR(50) NOT NULL UNIQUE,
       section VARCHAR(120) NOT NULL,
       chair_name VARCHAR(150) NOT NULL,
       description TEXT NOT NULL,
-      theme ENUM('sunrise', 'ocean', 'forest', 'ember') DEFAULT 'sunrise',
-      status ENUM('Activa', 'Archivada') DEFAULT 'Activa',
-      created_by INT DEFAULT NULL,
+      theme VARCHAR(50) DEFAULT 'sunrise' CHECK (theme IN ('sunrise', 'ocean', 'forest', 'ember')),
+      status VARCHAR(50) DEFAULT 'Activa' CHECK (status IN ('Activa', 'Archivada')),
+      created_by BIGINT DEFAULT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
- 
+
   await db.query(`
     CREATE TABLE IF NOT EXISTS assignments (
-      id INT AUTO_INCREMENT PRIMARY KEY,
+      id BIGSERIAL PRIMARY KEY,
       assignment_id VARCHAR(50) NOT NULL UNIQUE,
       title VARCHAR(120) NOT NULL,
-      type ENUM('TAS-01', 'TAS-02', 'TAS-03', 'TAS-04', 'TAS-05') NOT NULL,
+      type VARCHAR(50) NOT NULL CHECK (type IN ('TAS-01', 'TAS-02', 'TAS-03', 'TAS-04', 'TAS-05')),
       description TEXT NOT NULL,
       objective TEXT NOT NULL,
-      expected_product ENUM('PDF', 'Presentacion', 'Planilla') DEFAULT 'PDF',
-      deadline DATETIME NOT NULL,
+      expected_product VARCHAR(50) DEFAULT 'PDF' CHECK (expected_product IN ('PDF', 'Presentacion', 'Planilla')),
+      deadline TIMESTAMP NOT NULL,
       evaluation_criteria TEXT NOT NULL,
-      status ENUM('Borrador', 'Asignada', 'En Progreso', 'Entregada', 'En Validacion', 'Evaluada', 'Rechazada', 'Vencida', 'Validada') DEFAULT 'Borrador',
-      created_by INT NOT NULL,
-      commission_id INT NOT NULL,
-      parent_id INT DEFAULT NULL,
-      assigned_to INT DEFAULT NULL,
+      status VARCHAR(50) DEFAULT 'Borrador' CHECK (status IN ('Borrador', 'Asignada', 'En Progreso', 'Entregada', 'En Validacion', 'Evaluada', 'Rechazada', 'Vencida', 'Validada')),
+      created_by BIGINT NOT NULL,
+      commission_id BIGINT NOT NULL,
+      parent_id BIGINT DEFAULT NULL,
+      assigned_to BIGINT DEFAULT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
- 
+
   await db.query(`
     CREATE TABLE IF NOT EXISTS submissions (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      assignment_id INT NOT NULL,
-      submitted_by INT NOT NULL,
+      id BIGSERIAL PRIMARY KEY,
+      assignment_id BIGINT NOT NULL,
+      submitted_by BIGINT NOT NULL,
       file_url VARCHAR(500) NOT NULL,
       file_name VARCHAR(255) NOT NULL,
-      file_size INT NOT NULL,
-      status ENUM('Borrador', 'Entregada', 'En Evaluacion', 'Evaluada', 'En Validacion', 'Validada', 'Rechazada', 'Vencida') DEFAULT 'Borrador',
-      submitted_at DATETIME DEFAULT NULL,
+      file_size BIGINT NOT NULL,
+      status VARCHAR(50) DEFAULT 'Borrador' CHECK (status IN ('Borrador', 'Entregada', 'En Evaluacion', 'Evaluada', 'En Validacion', 'Validada', 'Rechazada', 'Vencida')),
+      submitted_at TIMESTAMP DEFAULT NULL,
       version INT DEFAULT 1,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
- 
+
   await db.query(`
     CREATE TABLE IF NOT EXISTS evaluations (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      submission_id INT NOT NULL,
-      evaluated_by INT NOT NULL,
-      alignment_score INT NOT NULL,
-      argument_score INT NOT NULL,
-      structure_score INT NOT NULL,
-      originality_score INT NOT NULL,
-      writing_score INT NOT NULL,
+      id BIGSERIAL PRIMARY KEY,
+      submission_id BIGINT NOT NULL,
+      evaluated_by BIGINT NOT NULL,
+      alignment_score INT NOT NULL CHECK (alignment_score BETWEEN 1 AND 4),
+      argument_score INT NOT NULL CHECK (argument_score BETWEEN 1 AND 4),
+      structure_score INT NOT NULL CHECK (structure_score BETWEEN 1 AND 4),
+      originality_score INT NOT NULL CHECK (originality_score BETWEEN 1 AND 4),
+      writing_score INT NOT NULL CHECK (writing_score BETWEEN 1 AND 4),
       total_score DECIMAL(4,2) NOT NULL,
-      verdict ENUM('Aprobado', 'En Correccion', 'Rechazado') NOT NULL,
+      verdict VARCHAR(50) NOT NULL CHECK (verdict IN ('Aprobado', 'En Correccion', 'Rechazado')),
       strengths TEXT NOT NULL,
       improvements TEXT NOT NULL,
       recommendations TEXT NOT NULL,
-      correction_deadline DATETIME DEFAULT NULL,
+      correction_deadline TIMESTAMP DEFAULT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
- 
+
   await db.query(`
     CREATE TABLE IF NOT EXISTS audit_logs (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      user_id INT NOT NULL,
+      id BIGSERIAL PRIMARY KEY,
+      user_id BIGINT NOT NULL,
       action VARCHAR(100) NOT NULL,
       entity_type VARCHAR(50) NOT NULL,
       entity_id VARCHAR(50) NOT NULL,
@@ -147,34 +146,34 @@ const bootstrapDatabase = async () => {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
- 
+
   await db.query(`
     CREATE TABLE IF NOT EXISTS alerts (
-      id INT AUTO_INCREMENT PRIMARY KEY,
+      id BIGSERIAL PRIMARY KEY,
       code VARCHAR(20) NOT NULL,
       type VARCHAR(50) NOT NULL,
       message TEXT NOT NULL,
-      severity ENUM('info', 'warning', 'critical') DEFAULT 'info',
-      recipient_role ENUM('superadmin', 'secretaria', 'mesa', 'delegado', 'all') NOT NULL,
+      severity VARCHAR(50) DEFAULT 'info' CHECK (severity IN ('info', 'warning', 'critical')),
+      recipient_role VARCHAR(50) NOT NULL CHECK (recipient_role IN ('superadmin', 'secretaria', 'mesa', 'delegado', 'all')),
       related_entity_type VARCHAR(50) NOT NULL,
       related_entity_id VARCHAR(50) NOT NULL,
       is_read BOOLEAN DEFAULT FALSE,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
- 
+
   for (const commission of seedCommissions) {
     await db.query(
       `INSERT INTO commissions (id, name, code, section, chair_name, description, theme, status, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'Activa', 1)
-       ON DUPLICATE KEY UPDATE
-         name = VALUES(name),
-         code = VALUES(code),
-         section = VALUES(section),
-         chair_name = VALUES(chair_name),
-         description = VALUES(description),
-         theme = VALUES(theme)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'Activa', 1)
+       ON CONFLICT (id) DO UPDATE SET
+         name = EXCLUDED.name,
+         code = EXCLUDED.code,
+         section = EXCLUDED.section,
+         chair_name = EXCLUDED.chair_name,
+         description = EXCLUDED.description,
+         theme = EXCLUDED.theme`,
       [
         commission.id,
         commission.name,
@@ -186,21 +185,21 @@ const bootstrapDatabase = async () => {
       ]
     );
   }
- 
+
   for (const user of seedUsers) {
     await db.query(
       `INSERT INTO users (email, password, full_name, role, commission_id, is_active)
-       VALUES (?, ?, ?, ?, ?, TRUE)
-       ON DUPLICATE KEY UPDATE
-         full_name = VALUES(full_name),
-         role = VALUES(role),
-         commission_id = VALUES(commission_id),
-         password = COALESCE(password, VALUES(password))`,
+       VALUES ($1, $2, $3, $4, $5, TRUE)
+       ON CONFLICT (email) DO UPDATE SET
+         full_name = EXCLUDED.full_name,
+         role = EXCLUDED.role,
+         commission_id = EXCLUDED.commission_id,
+         password = COALESCE(users.password, EXCLUDED.password)`,
       [user.email, BCRYPT_PASSWORD, user.full_name, user.role, user.commission_id]
     );
   }
 };
- 
+
 module.exports = {
   bootstrapDatabase
 };

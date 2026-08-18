@@ -8,7 +8,7 @@ const router = express.Router();
 const buildCommissionScope = (user) => {
   if (user.role === 'mesa' || user.role === 'delegado') {
     return {
-      clause: 'WHERE c.id = ?',
+      clause: 'WHERE c.id = $1',
       params: [user.commission_id]
     };
   }
@@ -19,7 +19,7 @@ const buildCommissionScope = (user) => {
 router.get('/', authenticate, async (req, res) => {
   try {
     const scope = buildCommissionScope(req.user);
-    const [commissions] = await db.query(
+    const commissionsResult = await db.query(
       `SELECT
         c.*,
         COUNT(DISTINCT u.id) AS members_count,
@@ -34,7 +34,7 @@ router.get('/', authenticate, async (req, res) => {
       scope.params
     );
 
-    return res.json(commissions);
+    return res.json(commissionsResult.rows);
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
@@ -48,17 +48,17 @@ router.post('/', authenticate, authorize('superadmin', 'secretaria'), async (req
   }
 
   try {
-    const [[maxRow]] = await db.query('SELECT COALESCE(MAX(id), 0) AS maxId FROM commissions');
-    const nextId = maxRow.maxId + 1;
+    const maxRow = await db.query('SELECT COALESCE(MAX(id), 0) AS maxId FROM commissions');
+    const nextId = Number(maxRow.rows[0].maxid) + 1;
 
     await db.query(
       `INSERT INTO commissions (id, name, code, section, chair_name, description, theme, status, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'Activa', ?)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'Activa', $8)`,
       [nextId, name, code, section, chairName, description, theme || 'sunrise', req.user.id]
     );
 
-    const [rows] = await db.query('SELECT * FROM commissions WHERE id = ?', [nextId]);
-    return res.status(201).json(rows[0]);
+    const rowsResult = await db.query('SELECT * FROM commissions WHERE id = $1', [nextId]);
+    return res.status(201).json(rowsResult.rows[0]);
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
@@ -73,7 +73,7 @@ router.get('/:id', authenticate, async (req, res) => {
       return res.status(403).json({ error: 'No tienes acceso a esta comisión' });
     }
 
-    const [[commission]] = await db.query(
+    const commissionResult = await db.query(
       `SELECT
         c.*,
         COUNT(DISTINCT u.id) AS members_count,
@@ -81,33 +81,35 @@ router.get('/:id', authenticate, async (req, res) => {
       FROM commissions c
       LEFT JOIN users u ON u.commission_id = c.id AND u.is_active = TRUE
       LEFT JOIN assignments a ON a.commission_id = c.id
-      WHERE c.id = ?
+      WHERE c.id = $1
       GROUP BY c.id`,
       [commissionId]
     );
 
-    if (!commission) {
+    if (!commissionResult.rowCount) {
       return res.status(404).json({ error: 'Comisión no encontrada' });
     }
 
-    const [people] = await db.query(
+    const commission = commissionResult.rows[0];
+
+    const peopleResult = await db.query(
       `SELECT id, full_name, email, role, is_active, last_login, created_at
        FROM users
-       WHERE commission_id = ?
-       ORDER BY FIELD(role, 'mesa', 'delegado'), full_name ASC`,
+       WHERE commission_id = $1
+       ORDER BY CASE role WHEN 'mesa' THEN 1 WHEN 'delegado' THEN 2 ELSE 3 END, full_name ASC`,
       [commissionId]
     );
 
-    const [assignments] = await db.query(
+    const assignmentsResult = await db.query(
       `SELECT a.*, u.full_name AS creator_name
        FROM assignments a
        LEFT JOIN users u ON u.id = a.created_by
-       WHERE a.commission_id = ?
+       WHERE a.commission_id = $1
        ORDER BY a.deadline ASC, a.created_at DESC`,
       [commissionId]
     );
 
-    const [recentActivity] = await db.query(
+    const recentActivityResult = await db.query(
       `SELECT
         'assignment' AS item_type,
         a.id AS item_id,
@@ -115,7 +117,7 @@ router.get('/:id', authenticate, async (req, res) => {
         a.status,
         a.created_at
       FROM assignments a
-      WHERE a.commission_id = ?
+      WHERE a.commission_id = $1
       ORDER BY a.created_at DESC
       LIMIT 5`,
       [commissionId]
@@ -123,9 +125,9 @@ router.get('/:id', authenticate, async (req, res) => {
 
     return res.json({
       commission,
-      people,
-      assignments,
-      recentActivity
+      people: peopleResult.rows,
+      assignments: assignmentsResult.rows,
+      recentActivity: recentActivityResult.rows
     });
   } catch (error) {
     return res.status(500).json({ error: error.message });
@@ -153,18 +155,18 @@ router.post('/:id/people', authenticate, authorize('superadmin', 'secretaria', '
 
     await db.query(
       `INSERT INTO users (email, password, full_name, role, commission_id, is_active)
-       VALUES (?, ?, ?, ?, ?, TRUE)`,
+       VALUES ($1, $2, $3, $4, $5, TRUE)`,
       [email, tempPasswordHash, fullName, role, commissionId]
     );
 
-    const [rows] = await db.query(
+    const rowsResult = await db.query(
       `SELECT id, full_name, email, role, commission_id, is_active, created_at
        FROM users
-       WHERE email = ?`,
+       WHERE email = $1`,
       [email]
     );
 
-    return res.status(201).json(rows[0]);
+    return res.status(201).json(rowsResult.rows[0]);
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }

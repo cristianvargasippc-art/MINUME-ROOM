@@ -55,29 +55,33 @@ router.post('/register', async (req, res) => {
   }
 
   try {
-    const [existingUsers] = await db.query('SELECT id FROM users WHERE email = ?', [email]);
+    const existingUsers = await db.query('SELECT id FROM users WHERE email = $1', [email]);
 
-    if (existingUsers.length) {
+    if (existingUsers.rowCount) {
       return res.status(409).json({ error: 'Ya existe una cuenta con ese correo' });
     }
 
     let resolvedCommissionId = commissionId ? Number(commissionId) : null;
 
     if (!resolvedCommissionId) {
-      const [commissions] = await db.query('SELECT id FROM commissions WHERE status = ? ORDER BY id ASC LIMIT 1', ['Activa']);
-      resolvedCommissionId = commissions[0]?.id || null;
+      const commissions = await db.query('SELECT id FROM commissions WHERE status = $1 ORDER BY id ASC LIMIT 1', ['Activa']);
+      resolvedCommissionId = commissions.rows[0]?.id || null;
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
-    const [insertResult] = await db.query(
+    const insertResult = await db.query(
       `INSERT INTO users (email, password, full_name, role, commission_id, is_active)
-       VALUES (?, ?, ?, 'delegado', ?, TRUE)`,
+       VALUES ($1, $2, $3, 'delegado', $4, TRUE)
+       RETURNING id`,
       [email, passwordHash, fullName, resolvedCommissionId]
     );
 
-    const [[user]] = await db.query('SELECT * FROM users WHERE id = ?', [insertResult.insertId]);
+    const userId = insertResult.rows[0].id;
+    const userResult = await db.query('SELECT * FROM users WHERE id = $1', [userId]);
+    const user = userResult.rows[0];
+
     await db.query(
-      'INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)',
+      'INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details, ip_address) VALUES ($1, $2, $3, $4, $5, $6)',
       [user.id, 'REGISTER', 'USER', String(user.id), 'Registro publico de delegado', req.ip || 'unknown']
     );
 
@@ -106,13 +110,13 @@ router.post('/login', async (req, res) => {
   }
 
   try {
-    const [users] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
+    const usersResult = await db.query('SELECT * FROM users WHERE email = $1', [email]);
 
-    if (!users.length) {
+    if (!usersResult.rowCount) {
       return res.status(401).json({ error: 'Credenciales invalidas' });
     }
 
-    const user = users[0];
+    const user = usersResult.rows[0];
     const isValid = await bcrypt.compare(password, user.password);
 
     if (!isValid) {
@@ -123,10 +127,10 @@ router.post('/login', async (req, res) => {
       return res.status(403).json({ error: 'Cuenta suspendida' });
     }
 
-    await db.query('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]).catch(() => {});
+    await db.query('UPDATE users SET last_login = NOW() WHERE id = $1', [user.id]).catch(() => {});
     try {
       await db.query(
-        'INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)',
+        'INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details, ip_address) VALUES ($1, $2, $3, $4, $5, $6)',
         [user.id, 'LOGIN', 'USER', String(user.id), 'Inicio de sesión exitoso', req.ip || 'unknown']
       );
     } catch (auditError) {
@@ -152,12 +156,12 @@ router.post('/login', async (req, res) => {
 
 router.get('/profile', authenticate, async (req, res) => {
   try {
-    const [users] = await db.query(
-      'SELECT id, email, full_name, role, commission_id, profile_image_url, is_active, last_login, created_at FROM users WHERE id = ?',
+    const usersResult = await db.query(
+      'SELECT id, email, full_name, role, commission_id, profile_image_url, is_active, last_login, created_at FROM users WHERE id = $1',
       [req.user.id]
     );
 
-    return res.json(users[0]);
+    return res.json(usersResult.rows[0]);
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
@@ -171,13 +175,13 @@ router.patch('/profile', authenticate, async (req, res) => {
   }
 
   try {
-    await db.query('UPDATE users SET full_name = ? WHERE id = ?', [fullName.trim(), req.user.id]);
-    const [[user]] = await db.query(
-      'SELECT id, email, full_name, role, commission_id, profile_image_url FROM users WHERE id = ?',
+    await db.query('UPDATE users SET full_name = $1 WHERE id = $2', [fullName.trim(), req.user.id]);
+    const userResult = await db.query(
+      'SELECT id, email, full_name, role, commission_id, profile_image_url FROM users WHERE id = $1',
       [req.user.id]
     );
 
-    return res.json(serializeUser(user));
+    return res.json(serializeUser(userResult.rows[0]));
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
@@ -190,14 +194,14 @@ router.post('/profile/image', authenticate, avatarUpload.single('avatar'), async
 
   try {
     const profileImageUrl = `/uploads/profiles/${req.file.filename}`;
-    await db.query('UPDATE users SET profile_image_url = ? WHERE id = ?', [profileImageUrl, req.user.id]);
+    await db.query('UPDATE users SET profile_image_url = $1 WHERE id = $2', [profileImageUrl, req.user.id]);
 
-    const [[user]] = await db.query(
-      'SELECT id, email, full_name, role, commission_id, profile_image_url FROM users WHERE id = ?',
+    const userResult = await db.query(
+      'SELECT id, email, full_name, role, commission_id, profile_image_url FROM users WHERE id = $1',
       [req.user.id]
     );
 
-    return res.json(serializeUser(user));
+    return res.json(serializeUser(userResult.rows[0]));
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
