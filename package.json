@@ -1,0 +1,13 @@
+{
+  "name": "minume-xvii",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MINUME XVII - Plataforma academica (React + Express + MySQL)",
+  "engines": {
+    "node": "20.x"
+  },
+  "scripts": {
+    "build": "cd frontend && npm install && npm run build && cd ../backend && npm install",
+    "start": "node backend/server.js"
+  }
+}
