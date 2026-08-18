@@ -1798,11 +1798,6 @@ canvas {
   }
 
   .metric-value { font-size: 1.7rem; }
-
-  .theme-switch,
-  .segmented-control {
-    grid-template-columns: 1fr; /* controles apilados, más fáciles de tocar */
-  }
 }
 
 /* ============================================================
@@ -1862,5 +1857,55 @@ canvas {
   .home-nav__actions {
     justify-content: space-between;
     gap: 0.4rem;
+  }
+}
+
+/* ============================================================
+   LOGIN / REGISTRO (auth) — móvil sin solapes
+   ============================================================ */
+
+/* En una sola columna (<=980px) los controles ES/EN/MINUME XVII
+   dejan de estar absolutos y pasan a una fila arriba de la tarjeta. */
+@media (max-width: 980px) {
+  .auth-panel {
+    padding: 1.4rem;
+    row-gap: 1.1rem;
+    align-content: center;
+  }
+
+  .auth-tools {
+    position: static;
+    top: auto;
+    right: auto;
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 600px) {
+  .auth-panel {
+    padding: 1rem 0.9rem 1.6rem;
+    row-gap: 0.9rem;
+  }
+
+  .auth-card {
+    width: 100%;
+    padding: 1.2rem;
+  }
+
+  /* Pestañas Sign in / Register: siempre lado a lado y tocables */
+  .segmented-control {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .segmented-control button {
+    padding: 0.75rem 0.5rem;
+  }
+
+  .auth-tools span,
+  .auth-tools button {
+    padding: 0.5rem 0.7rem;
+    font-size: 0.75rem;
   }
 }
