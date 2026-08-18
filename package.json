@@ -1,21 +1,13 @@
 {
-  "name": "minume-xvii",
+  "name": "minume-room",
   "version": "1.0.0",
   "private": true,
-  "type": "module",
-  "description": "MINUME XVII - Plataforma academica (React + Express + PostgreSQL/Supabase)",
-  "scripts": {
-    "postinstall": "npm --prefix backend install && npm --prefix frontend install",
-    "build:backend": "npm --prefix backend run build",
-    "build:frontend": "npm --prefix frontend run build",
-    "build": "npm run build:frontend && npm run build:backend && node scripts/copy-dist.js",
-    "start": "npm --prefix backend start",
-    "dev": "concurrently \"npm --prefix backend run dev\" \"npm --prefix frontend run start\""
-  },
+  "description": "MINUME XVII - Plataforma académica full stack",
   "engines": {
     "node": "20.x"
   },
-  "devDependencies": {
-    "concurrently": "^8.2.2"
+  "scripts": {
+    "build": "npm --prefix frontend install && npm --prefix frontend run build:prod && npm --prefix backend install --omit=dev",
+    "start": "node backend/server.js"
   }
 }
