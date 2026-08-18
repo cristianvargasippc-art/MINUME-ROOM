@@ -147,13 +147,18 @@ if (hasFrontendBuild) {
 app.use(errorHandler);
 
 const port = Number(process.env.PORT || 3001);
-bootstrapDatabase()
-  .then(() => {
-    httpServer.listen(port, () => {
-      console.log(`MINUME XVII backend corriendo en http://localhost:${port}`);
+
+console.log(`[MINUME] Iniciando servidor en puerto ${port}, NODE_ENV=${process.env.NODE_ENV}`);
+console.log(`[MINUME] DATABASE_URL configurado: ${process.env.DATABASE_URL ? 'SI' : 'NO'}`);
+console.log(`[MINUME] Frontend build encontrado: ${hasFrontendBuild ? 'SI' : 'NO'}`);
+
+httpServer.listen(port, () => {
+  console.log(`[MINUME] Servidor escuchando en puerto ${port}`);
+  bootstrapDatabase()
+    .then(() => {
+      console.log('[MINUME] Base de datos inicializada correctamente');
+    })
+    .catch((error) => {
+      console.error('[MINUME] Error al inicializar la base de datos:', error.message);
     });
-  })
-  .catch((error) => {
-    console.error('No se pudo iniciar el backend:', error);
-    process.exit(1);
-  });
+});
