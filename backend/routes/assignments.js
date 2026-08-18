@@ -81,7 +81,7 @@ router.post('/', authenticate, authorize('secretaria', 'superadmin', 'mesa'), as
         `INSERT INTO assignments (
           assignment_id, title, type, description, objective, expected_product,
           deadline, evaluation_criteria, status, created_by, commission_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
         [
           assignmentId,
           title,
@@ -97,11 +97,11 @@ router.post('/', authenticate, authorize('secretaria', 'superadmin', 'mesa'), as
         ]
       );
 
-      const [rows] = await db.query('SELECT * FROM assignments WHERE assignment_id = ?', [assignmentId]);
-      createdAssignments.push(rows[0]);
+      const rowsResult = await db.query('SELECT * FROM assignments WHERE assignment_id = $1', [assignmentId]);
+      createdAssignments.push(rowsResult.rows[0]);
 
       await db.query(
-        'INSERT INTO alerts (code, type, message, severity, recipient_role, related_entity_type, related_entity_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO alerts (code, type, message, severity, recipient_role, related_entity_type, related_entity_id) VALUES ($1, $2, $3, $4, $5, $6, $7)',
         ['ALT-001', 'NUEVA_ASIGNACION', `Nueva asignación: ${title}`, 'info', 'mesa', 'ASSIGNMENT', assignmentId]
       );
     }
@@ -115,7 +115,7 @@ router.post('/', authenticate, authorize('secretaria', 'superadmin', 'mesa'), as
 router.get('/', authenticate, async (req, res) => {
   try {
     const scope = buildAssignmentScope(req.user);
-    const [assignments] = await db.query(
+    const [assignmentsResult] = await db.query(
       `SELECT a.*, u.full_name AS creator_name, c.name AS commission_name, c.code AS commission_code
        FROM assignments a
        LEFT JOIN users u ON a.created_by = u.id
@@ -125,7 +125,7 @@ router.get('/', authenticate, async (req, res) => {
       scope.params
     );
 
-    return res.json(assignments);
+    return res.json(assignmentsResult.rows);
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
@@ -133,20 +133,20 @@ router.get('/', authenticate, async (req, res) => {
 
 router.get('/:id', authenticate, async (req, res) => {
   try {
-    const [rows] = await db.query(
+    const rowsResult = await db.query(
       `SELECT a.*, u.full_name AS creator_name, c.name AS commission_name, c.code AS commission_code
        FROM assignments a
        LEFT JOIN users u ON a.created_by = u.id
        LEFT JOIN commissions c ON a.commission_id = c.id
-       WHERE a.id = ?`,
+       WHERE a.id = $1`,
       [req.params.id]
     );
 
-    if (!rows.length) {
+    if (!rowsResult.rowCount) {
       return res.status(404).json({ error: 'Asignación no encontrada' });
     }
 
-    return res.json(rows[0]);
+    return res.json(rowsResult.rows[0]);
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
@@ -155,12 +155,12 @@ router.get('/:id', authenticate, async (req, res) => {
 router.post('/:id/confirm', authenticate, authorize('mesa'), async (req, res) => {
   try {
     await db.query(
-      'UPDATE assignments SET status = ? WHERE id = ? AND status = ?',
+      'UPDATE assignments SET status = $1 WHERE id = $2 AND status = $3',
       ['En Progreso', req.params.id, 'Asignada']
     );
 
-    const [rows] = await db.query('SELECT * FROM assignments WHERE id = ?', [req.params.id]);
-    return res.json(rows[0]);
+    const rowsResult = await db.query('SELECT * FROM assignments WHERE id = $1', [req.params.id]);
+    return res.json(rowsResult.rows[0]);
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
@@ -169,20 +169,20 @@ router.post('/:id/confirm', authenticate, authorize('mesa'), async (req, res) =>
 router.get('/:id/submissions', authenticate, async (req, res) => {
   try {
     const assignmentId = Number(req.params.id);
-    const [assignmentRows] = await db.query('SELECT * FROM assignments WHERE id = ?', [assignmentId]);
+    const assignmentRows = await db.query('SELECT * FROM assignments WHERE id = $1', [assignmentId]);
 
-    if (!assignmentRows.length) {
+    if (!assignmentRows.rowCount) {
       return res.status(404).json({ error: 'Asignación no encontrada' });
     }
 
-    const assignment = assignmentRows[0];
+    const assignment = assignmentRows.rows[0];
 
     if (['delegado', 'mesa'].includes(req.user.role) && req.user.commission_id !== assignment.commission_id) {
       return res.status(403).json({ error: 'No tienes permiso para ver los envíos de esta asignación' });
     }
 
     const ownSubmissionOnly = req.user.role === 'delegado';
-    const [submissions] = await db.query(
+    const submissionsResult = await db.query(
       `SELECT
         s.*,
         u.full_name AS submitted_by_name,
@@ -202,19 +202,19 @@ router.get('/:id/submissions', authenticate, async (req, res) => {
          WHERE ev.submission_id = s.id
        )
        LEFT JOIN users evaluator ON evaluator.id = e.evaluated_by
-       WHERE s.assignment_id = ?
+       WHERE s.assignment_id = $1
        AND s.id IN (
          SELECT MAX(latest.id)
          FROM submissions latest
-         WHERE latest.assignment_id = ?
+         WHERE latest.assignment_id = $1
          GROUP BY latest.submitted_by
        )
-       ${ownSubmissionOnly ? 'AND s.submitted_by = ?' : ''}
+       ${ownSubmissionOnly ? 'AND s.submitted_by = $2' : ''}
        ORDER BY s.submitted_at DESC`,
-      ownSubmissionOnly ? [assignmentId, assignmentId, req.user.id] : [assignmentId, assignmentId]
+      ownSubmissionOnly ? [assignmentId, req.user.id] : [assignmentId]
     );
 
-    return res.json(submissions);
+    return res.json(submissionsResult.rows);
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
@@ -223,13 +223,13 @@ router.get('/:id/submissions', authenticate, async (req, res) => {
 router.post('/:id/submissions', authenticate, upload.single('document'), async (req, res) => {
   try {
     const assignmentId = Number(req.params.id);
-    const [assignmentRows] = await db.query('SELECT * FROM assignments WHERE id = ?', [assignmentId]);
+    const assignmentRows = await db.query('SELECT * FROM assignments WHERE id = $1', [assignmentId]);
 
-    if (!assignmentRows.length) {
+    if (!assignmentRows.rowCount) {
       return res.status(404).json({ error: 'Asignación no encontrada' });
     }
 
-    const assignment = assignmentRows[0];
+    const assignment = assignmentRows.rows[0];
 
     if (['delegado', 'mesa'].includes(req.user.role) && req.user.commission_id !== assignment.commission_id) {
       return res.status(403).json({ error: 'No puedes enviar un documento para esta asignación' });
@@ -240,29 +240,30 @@ router.post('/:id/submissions', authenticate, upload.single('document'), async (
     }
 
     const fileUrl = `/uploads/${req.file.filename}`;
-    const [existingSubmissions] = await db.query(
-      'SELECT id FROM submissions WHERE assignment_id = ? AND submitted_by = ? ORDER BY submitted_at DESC LIMIT 1',
+    const existingSubmissions = await db.query(
+      'SELECT id FROM submissions WHERE assignment_id = $1 AND submitted_by = $2 ORDER BY submitted_at DESC LIMIT 1',
       [assignmentId, req.user.id]
     );
 
     let submissionId;
 
-    if (existingSubmissions.length) {
-      submissionId = existingSubmissions[0].id;
+    if (existingSubmissions.rowCount) {
+      submissionId = existingSubmissions.rows[0].id;
       await db.query(
         `UPDATE submissions
-         SET file_url = ?, file_name = ?, file_size = ?, status = 'Entregada', submitted_at = NOW(), version = version + 1
-         WHERE id = ?`,
+         SET file_url = $1, file_name = $2, file_size = $3, status = 'Entregada', submitted_at = NOW(), version = version + 1
+         WHERE id = $4`,
         [fileUrl, req.file.originalname, req.file.size, submissionId]
       );
     } else {
-      const [insertResult] = await db.query(
+      const insertResult = await db.query(
         `INSERT INTO submissions (
           assignment_id, submitted_by, file_url, file_name, file_size, status, submitted_at
-        ) VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+        ) VALUES ($1, $2, $3, $4, $5, $6, NOW())
+        RETURNING id`,
         [assignmentId, req.user.id, fileUrl, req.file.originalname, req.file.size, 'Entregada']
       );
-      submissionId = insertResult.insertId;
+      submissionId = insertResult.rows[0].id;
     }
 
     await db.query(
@@ -271,17 +272,17 @@ router.post('/:id/submissions', authenticate, upload.single('document'), async (
          WHEN status IN ('Borrador', 'Asignada', 'En Progreso') THEN 'Entregada'
          ELSE status
        END
-       WHERE id = ?`,
+       WHERE id = $1`,
       [assignmentId]
     );
 
     await db.query(
-      'INSERT INTO alerts (code, type, message, severity, recipient_role, related_entity_type, related_entity_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO alerts (code, type, message, severity, recipient_role, related_entity_type, related_entity_id) VALUES ($1, $2, $3, $4, $5, $6, $7)',
       ['ALT-002', 'TAREA_ENTREGADA', `Entrega recibida: ${assignment.title}`, 'info', 'mesa', 'ASSIGNMENT', assignment.assignment_id]
     );
 
-    const [rows] = await db.query('SELECT * FROM submissions WHERE id = ?', [submissionId]);
-    return res.status(201).json(rows[0]);
+    const rowsResult = await db.query('SELECT * FROM submissions WHERE id = $1', [submissionId]);
+    return res.status(201).json(rowsResult.rows[0]);
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
@@ -300,17 +301,19 @@ router.post('/:id/submissions/:submissionId/evaluation', authenticate, authorize
   }
 
   try {
-    const [[submission]] = await db.query(
+    const submissionResult = await db.query(
       `SELECT s.*, a.commission_id, a.assignment_id, a.title
        FROM submissions s
        INNER JOIN assignments a ON a.id = s.assignment_id
-       WHERE s.id = ? AND s.assignment_id = ?`,
+       WHERE s.id = $1 AND s.assignment_id = $2`,
       [submissionId, assignmentId]
     );
 
-    if (!submission) {
+    if (!submissionResult.rowCount) {
       return res.status(404).json({ error: 'Entrega no encontrada' });
     }
+
+    const submission = submissionResult.rows[0];
 
     if (req.user.role === 'mesa' && req.user.commission_id !== submission.commission_id) {
       return res.status(403).json({ error: 'No puedes evaluar entregas fuera de tu comisión' });
@@ -321,7 +324,7 @@ router.post('/:id/submissions/:submissionId/evaluation', authenticate, authorize
       ? 'Entrega aprobada por la mesa directiva.'
       : 'La entrega fue devuelta para corrección.');
 
-    const [insertResult] = await db.query(
+    const insertResult = await db.query(
       `INSERT INTO evaluations (
         submission_id,
         evaluated_by,
@@ -335,7 +338,8 @@ router.post('/:id/submissions/:submissionId/evaluation', authenticate, authorize
         strengths,
         improvements,
         recommendations
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      RETURNING id`,
       [
         submissionId,
         req.user.id,
@@ -353,22 +357,22 @@ router.post('/:id/submissions/:submissionId/evaluation', authenticate, authorize
     );
 
     await db.query(
-      'UPDATE submissions SET status = ? WHERE id = ?',
+      'UPDATE submissions SET status = $1 WHERE id = $2',
       [resolvedVerdict === 'Aprobado' ? 'Evaluada' : 'Rechazada', submissionId]
     );
 
     await db.query(
       `UPDATE assignments
        SET status = CASE
-         WHEN ? = 'Aprobado' THEN 'Evaluada'
+         WHEN $1 = 'Aprobado' THEN 'Evaluada'
          ELSE 'Rechazada'
        END
-       WHERE id = ?`,
+       WHERE id = $2`,
       [resolvedVerdict, assignmentId]
     );
 
     await db.query(
-      'INSERT INTO alerts (code, type, message, severity, recipient_role, related_entity_type, related_entity_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO alerts (code, type, message, severity, recipient_role, related_entity_type, related_entity_id) VALUES ($1, $2, $3, $4, $5, $6, $7)',
       [
         'ALT-003',
         resolvedVerdict === 'Aprobado' ? 'TAREA_CALIFICADA' : 'TAREA_DEVUELTA',
@@ -380,15 +384,15 @@ router.post('/:id/submissions/:submissionId/evaluation', authenticate, authorize
       ]
     );
 
-    const [[evaluation]] = await db.query(
+    const evaluationResult = await db.query(
       `SELECT e.*, u.full_name AS evaluated_by_name
        FROM evaluations e
        LEFT JOIN users u ON u.id = e.evaluated_by
-       WHERE e.id = ?`,
-      [insertResult.insertId]
+       WHERE e.id = $1`,
+      [insertResult.rows[0].id]
     );
 
-    return res.status(201).json(evaluation);
+    return res.status(201).json(evaluationResult.rows[0]);
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }

@@ -43,6 +43,10 @@ const isAllowedOrigin = (origin) => {
     return true;
   }
 
+  if (allowedOrigins.has('*')) {
+    return true;
+  }
+
   if (allowedOrigins.has(origin)) {
     return true;
   }
@@ -62,27 +66,11 @@ const io = new Server(httpServer, {
       }
       return callback(new Error('Origen no permitido por CORS'));
     },
-    methods: ['GET', 'POST', 'PATCH'],
-    credentials: true
+    methods: ['GET', 'POST', 'PATCH']
   }
 });
 
-const helmetConfig = {
-  contentSecurityPolicy: process.env.NODE_ENV === 'production' ? {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
-      fontSrc: ["'self'", 'https://fonts.gstatic.com'],
-      imgSrc: ["'self'", 'data:', 'https:'],
-      scriptSrc: ["'self'"],
-      connectSrc: ["'self'", 'wss:', 'https:'],
-      frameAncestors: ["'none'"],
-    },
-  } : false,
-  crossOriginEmbedderPolicy: false,
-};
-
-app.use(helmet(helmetConfig));
+app.use(helmet());
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -91,9 +79,7 @@ app.use(
       }
       return callback(new Error('Origen no permitido por CORS'));
     },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    credentials: true
   })
 );
 app.use(express.json({ limit: '10mb' }));
@@ -102,10 +88,9 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(
   rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: process.env.NODE_ENV === 'production' ? 100 : 150,
+    max: 150,
     standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: 'Demasiadas solicitudes, intente más tarde' },
+    legacyHeaders: false
   })
 );
 
@@ -125,23 +110,18 @@ app.set('io', io);
 
 app.get('/health', async (req, res) => {
   try {
-    const connection = await db.getConnection();
-    await connection.query('SELECT 1');
-    connection.release();
+    await db.query('SELECT 1');
 
     return res.json({
       status: 'OK',
       database: 'connected',
-      timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV || 'development'
+      timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Health check falló:', error);
     return res.status(503).json({
       status: 'ERROR',
       database: 'disconnected',
-      timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV || 'development'
+      timestamp: new Date().toISOString()
     });
   }
 });
@@ -153,59 +133,24 @@ app.use('/api/alerts', alertRoutes);
 app.use('/api/commissions', commissionRoutes);
 
 if (hasFrontendBuild) {
-  app.use(express.static(frontendBuildPath, {
-    maxAge: process.env.NODE_ENV === 'production' ? '1y' : '0',
-    etag: true,
-    lastModified: true,
-  }));
+  app.use(express.static(frontendBuildPath));
 
   app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api/') || req.path.startsWith('/health') || req.path.startsWith('/uploads')) {
+    if (req.path.startsWith('/api/')) {
       return next();
     }
 
-    return res.sendFile(path.join(frontendBuildPath, 'index.html'), (err) => {
-      if (err) {
-        res.status(500).send('Error cargando la aplicación');
-      }
-    });
+    return res.sendFile(path.join(frontendBuildPath, 'index.html'));
   });
 }
 
 app.use(errorHandler);
 
 const port = Number(process.env.PORT || 3001);
-
-const gracefulShutdown = async (signal) => {
-  console.log(`\n${signal} recibido. Cerrando servidor...`);
-  
-  httpServer.close(async () => {
-    console.log('Servidor HTTP cerrado.');
-    try {
-      await db.end();
-      console.log('Pool de base de datos cerrado.');
-      process.exit(0);
-    } catch (error) {
-      console.error('Error cerrando pool:', error);
-      process.exit(1);
-    }
-  });
-
-  setTimeout(() => {
-    console.error('Forzando cierre después de 10s');
-    process.exit(1);
-  }, 10000);
-};
-
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-
 bootstrapDatabase()
   .then(() => {
     httpServer.listen(port, () => {
       console.log(`MINUME XVII backend corriendo en http://localhost:${port}`);
-      console.log(`Entorno: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`Frontend URL: ${frontendUrl}`);
     });
   })
   .catch((error) => {

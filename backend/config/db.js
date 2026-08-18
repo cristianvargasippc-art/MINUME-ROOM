@@ -1,28 +1,30 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
-const isProduction = process.env.NODE_ENV === 'production';
-
-const pool = new Pool({
-  host: process.env.DB_HOST,
-  port: Number(process.env.DB_PORT || 5432),
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  ssl: isProduction ? { rejectUnauthorized: false } : false,
-  max: 20,
+const dbConfig = {
+  host: process.env.DB_HOST || process.env.PGHOST || process.env.RAILWAY_PGHOST || 'localhost',
+  port: Number(process.env.DB_PORT || process.env.PGPORT || process.env.RAILWAY_PGPORT || 5432),
+  user: process.env.DB_USER || process.env.PGUSER || process.env.RAILWAY_PGUSER || 'postgres',
+  password: process.env.DB_PASSWORD || process.env.PGPASSWORD || process.env.RAILWAY_PGPASSWORD || '',
+  database: process.env.DB_NAME || process.env.PGDATABASE || process.env.RAILWAY_PGDATABASE || 'minume_xvii',
+  max: 10,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,
-});
+};
 
-pool.on('error', (err) => {
-  console.error('Error inesperado en el pool de PostgreSQL:', err);
-});
+const sslMode = (process.env.DB_SSL || '').toLowerCase();
+if (sslMode === 'true' || sslMode === '1' || sslMode === 'required' || sslMode === 'require') {
+  dbConfig.ssl = {
+    rejectUnauthorized: false
+  };
+}
+
+const pool = new Pool(dbConfig);
 
 const db = {
   query: (text, params) => pool.query(text, params),
-  getConnection: () => pool.connect(),
-  end: () => pool.end(),
+  getClient: () => pool.connect(),
+  end: () => pool.end()
 };
 
 module.exports = db;
