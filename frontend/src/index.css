@@ -1804,3 +1804,63 @@ canvas {
     grid-template-columns: 1fr; /* controles apilados, más fáciles de tocar */
   }
 }
+
+/* ============================================================
+   ENCABEZADO DE PORTADA (home-nav) — alineación perfecta
+   ============================================================ */
+
+/* Tablet (601–980px): el encabezado se mantiene en UNA fila ordenada */
+@media (min-width: 601px) and (max-width: 980px) {
+  .home-nav {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .home-nav__actions {
+    width: auto;
+    align-items: center;
+    justify-content: flex-end;
+  }
+}
+
+/* Teléfono (<=600px): apilado, centrado y con Enter a todo el ancho */
+@media (max-width: 600px) {
+  .home-nav {
+    flex-direction: column;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.8rem 1rem;
+  }
+
+  .brand-mark {
+    justify-content: center;
+  }
+
+  .home-nav__actions {
+    width: 100%;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem 1.4rem;
+  }
+
+  /* Enlaces de texto: fila centrada y con buen área táctil */
+  .home-nav__actions a:not(.btn) {
+    padding: 0.35rem 0.2rem;
+  }
+
+  /* Botón Enter: ocupa toda la fila, centrado bajo los enlaces */
+  .home-nav__actions .btn {
+    flex-basis: 100%;
+    width: 100%;
+    text-align: center;
+    margin-top: 0.2rem;
+  }
+}
+
+/* Muy pequeño (<=380px): enlaces uniformemente repartidos */
+@media (max-width: 380px) {
+  .home-nav__actions {
+    justify-content: space-between;
+    gap: 0.4rem;
+  }
+}
