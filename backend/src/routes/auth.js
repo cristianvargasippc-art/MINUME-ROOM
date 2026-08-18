@@ -43,7 +43,8 @@ router.get("/login", (_req, res) => {
 });
 
 router.post("/register", async (req, res) => {
-  const { fullName, email, password, commissionId } = req.body;
+  const { fullName, password, commissionId } = req.body;
+  const email = String(req.body.email || "").trim().toLowerCase();
 
   if (!fullName || !email || !password) {
     return res.status(400).json({ error: "Nombre, correo y contraseña son obligatorios" });
@@ -54,7 +55,7 @@ router.post("/register", async (req, res) => {
   }
 
   try {
-    const { rows: existingUsers } = await db.query("SELECT id FROM users WHERE email = $1", [email]);
+    const { rows: existingUsers } = await db.query("SELECT id FROM users WHERE LOWER(email) = $1", [email]);
 
     if (existingUsers.length) {
       return res.status(409).json({ error: "Ya existe una cuenta con ese correo" });
@@ -99,14 +100,15 @@ router.post("/register", async (req, res) => {
 });
 
 router.post("/login", async (req, res) => {
-  const { email, password } = req.body;
+  const { password } = req.body;
+  const email = String(req.body.email || "").trim().toLowerCase();
 
   if (!email || !password) {
     return res.status(400).json({ error: "Correo y contraseña son obligatorios" });
   }
 
   try {
-    const { rows: users } = await db.query("SELECT * FROM users WHERE email = $1", [email]);
+    const { rows: users } = await db.query("SELECT * FROM users WHERE LOWER(email) = $1", [email]);
 
     if (!users.length) {
       return res.status(401).json({ error: "Credenciales invalidas" });
