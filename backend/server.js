@@ -43,6 +43,10 @@ const isAllowedOrigin = (origin) => {
     return true;
   }
 
+  if (allowedOrigins.has('*')) {
+    return true;
+  }
+
   if (allowedOrigins.has(origin)) {
     return true;
   }

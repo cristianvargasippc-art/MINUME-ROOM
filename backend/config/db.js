@@ -1,16 +1,16 @@
 const mysql = require('mysql2/promise');
 require('dotenv').config();
-
+ 
 const db = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
-  port: Number(process.env.DB_PORT || 3306),
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'minume_xvii',
+  host: process.env.DB_HOST || process.env.MYSQLHOST || process.env.RAILWAY_MYSQL_HOST || 'localhost',
+  port: Number(process.env.DB_PORT || process.env.MYSQLPORT || process.env.RAILWAY_MYSQL_PORT || 3306),
+  user: process.env.DB_USER || process.env.MYSQLUSER || process.env.RAILWAY_MYSQL_USER || 'root',
+  password: process.env.DB_PASSWORD || process.env.MYSQLPASSWORD || process.env.RAILWAY_MYSQL_PASSWORD || '',
+  database: process.env.DB_NAME || process.env.MYSQLDATABASE || process.env.RAILWAY_MYSQL_DATABASE || 'minume_xvii',
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
   timezone: 'Z'
 });
-
+ 
 module.exports = db;
