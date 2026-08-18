@@ -12,8 +12,8 @@ const Login = () => {
   const [mode, setMode] = useState('login');
   const [form, setForm] = useState({
     fullName: '',
-    email: 'superadmin@minume-xvii.edu.do',
-    password: 'Minume2025!'
+    email: '',
+    password: ''
   });
   const [loading, setLoading] = useState(false);
 
@@ -95,7 +95,7 @@ const Login = () => {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="auth-form">
+          <form onSubmit={handleSubmit} className="auth-form" autoComplete="off">
             {mode === 'register' ? (
               <div>
                 <label className="label" htmlFor="fullName">{t('fullName')}</label>
@@ -114,11 +114,13 @@ const Login = () => {
               <label className="label" htmlFor="email">{t('email')}</label>
               <input
                 id="email"
+                name="minume-user"
                 className="input"
                 type="email"
                 value={form.email}
                 onChange={(event) => updateForm('email', event.target.value)}
                 placeholder="tu-correo@ejemplo.com"
+                autoComplete="off"
                 required
               />
             </div>
@@ -127,11 +129,13 @@ const Login = () => {
               <label className="label" htmlFor="password">{t('password')}</label>
               <input
                 id="password"
+                name="minume-pass"
                 className="input"
                 type="password"
                 value={form.password}
                 onChange={(event) => updateForm('password', event.target.value)}
                 placeholder={t('minPassword')}
+                autoComplete="new-password"
                 required
               />
             </div>
