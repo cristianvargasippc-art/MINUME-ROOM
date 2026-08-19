@@ -103,6 +103,37 @@ openssl rand -base64 32
 
 ---
 
+## 6. Si alguna vez se reescribe el historial de git
+
+Reescribir commits ya publicados (por ejemplo con `git filter-branch` para
+limpiar metadatos de los mensajes) cambia el SHA de **todos** los commits
+siguientes y obliga a un `git push --force-with-lease`.
+
+- **Hostinger** importa la rama `main` desde GitHub y la vuelve a traer
+  completa, así que se realinea solo en el siguiente despliegue: no hay que
+  tocar nada en el panel. Para confirmarlo, comprueba que el sitio ya sirve el
+  bundle esperado:
+
+  ```bash
+  curl -s https://minume.celider10.digital/ | grep -o 'src="/static[^"]*"'
+  ```
+
+  Debe coincidir con el nombre del archivo que hay en `backend/public/static/js/`.
+
+- **Copias locales del repositorio** (otra máquina, otra carpeta) sí necesitan
+  alinearse a mano. Un `git pull` normal intentaría fusionar el historial viejo
+  con el nuevo y duplicaría los commits:
+
+  ```bash
+  git fetch origin
+  git reset --hard origin/main
+  ```
+
+  Guarda antes cualquier cambio sin commitear (`git stash`): `reset --hard` los
+  descarta sin preguntar.
+
+---
+
 ## Manejo de secretos (patrón del repo)
 
 - ✅ Se versiona `backend/.env.example` y `backend/.env.production` → **plantillas sin valores reales**.
