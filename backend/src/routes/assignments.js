@@ -7,58 +7,21 @@ import { fileURLToPath } from "url";
 import { db } from "../db.js";
 import { authenticate, authorize } from "../middleware/auth.js";
 import { buildAssignmentScope } from "../utils/scope.js";
-import { uploadErrorHandler } from "../middleware/uploadErrors.js";
 import { removeUploadedFile } from "../utils/uploads.js";
 
 const uploadDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "uploads");
 fs.mkdirSync(uploadDir, { recursive: true });
 
-// La extensión guardada sale de este mapa y nunca del nombre que envía el
-// cliente: /uploads se sirve desde el mismo origen y el frontend enlaza las
-// entregas con <a href>, así que aceptar un .html permitiría ejecutar scripts
-// con la sesión de quien abriera la entrega. Los formatos siguen a
-// expected_product del esquema (PDF, Presentacion, Planilla).
-const SUBMISSION_MIME_EXTENSIONS = new Map([
-  ["application/pdf", ".pdf"],
-  ["application/msword", ".doc"],
-  ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", ".docx"],
-  ["application/vnd.oasis.opendocument.text", ".odt"],
-  ["application/vnd.ms-powerpoint", ".ppt"],
-  ["application/vnd.openxmlformats-officedocument.presentationml.presentation", ".pptx"],
-  ["application/vnd.oasis.opendocument.presentation", ".odp"],
-  ["application/vnd.ms-excel", ".xls"],
-  ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ".xlsx"],
-  ["application/vnd.oasis.opendocument.spreadsheet", ".ods"],
-  ["text/csv", ".csv"],
-]);
-
-// El nombre original se conserva en submissions.file_name para mostrarlo; aquí
-// solo importa que el fichero en disco tenga una extensión de confianza.
 const storage = multer.diskStorage({
   destination: uploadDir,
   filename: (_req, file, cb) => {
-    const ext = SUBMISSION_MIME_EXTENSIONS.get(file.mimetype);
+    const ext = path.extname(file.originalname) || "";
     cb(null, `${Date.now()}-${randomBytes(4).toString("hex")}${ext}`);
   },
 });
 
 const upload = multer({
   storage,
-  limits: { fileSize: 30 * 1024 * 1024, files: 1 },
-  fileFilter: (_req, file, cb) => {
-    if (!SUBMISSION_MIME_EXTENSIONS.has(file.mimetype)) {
-      const error = new Error("Formato no admitido. Envía un PDF, documento, presentación o planilla");
-      error.status = 415;
-      return cb(error);
-    }
-    return cb(null, true);
-  },
-});
-
-const handleSubmissionUploadError = uploadErrorHandler({
-  LIMIT_FILE_SIZE: "El archivo supera el límite de 30 MB",
-  LIMIT_FILE_COUNT: "Envía un solo archivo",
-  LIMIT_UNEXPECTED_FILE: "Envía el archivo en el campo 'document'",
 });
 
 const router = express.Router();
@@ -221,7 +184,7 @@ router.get("/:id/submissions", authenticate, async (req, res) => {
   }
 });
 
-router.post("/:id/submissions", authenticate, upload.single("document"), handleSubmissionUploadError, async (req, res) => {
+router.post("/:id/submissions", authenticate, upload.single("document"), async (req, res) => {
   try {
     const assignmentId = Number(req.params.id);
     const { rows: assignmentRows } = await db.query("SELECT * FROM assignments WHERE id = $1", [assignmentId]);

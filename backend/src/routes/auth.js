@@ -8,48 +8,20 @@ import { randomBytes } from "crypto";
 import { fileURLToPath } from "url";
 import { db } from "../db.js";
 import { authenticate } from "../middleware/auth.js";
-import { uploadErrorHandler } from "../middleware/uploadErrors.js";
 import { removeUploadedFile } from "../utils/uploads.js";
 
 const router = express.Router();
 const uploadDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "uploads", "profiles");
 fs.mkdirSync(uploadDir, { recursive: true });
 
-// La extensión guardada sale de este mapa y nunca del nombre que envía el
-// cliente: /uploads se sirve desde el mismo origen que la app, así que dejar
-// pasar un .html o un .js permitiría ejecutar scripts con la sesión de quien
-// los abriera. SVG queda fuera a propósito, porque puede incrustar <script>.
-const AVATAR_MIME_EXTENSIONS = new Map([
-  ["image/jpeg", ".jpg"],
-  ["image/png", ".png"],
-  ["image/webp", ".webp"],
-  ["image/avif", ".avif"],
-  ["image/gif", ".gif"],
-]);
-
 const avatarUpload = multer({
   storage: multer.diskStorage({
     destination: uploadDir,
     filename: (req, file, cb) => {
-      const ext = AVATAR_MIME_EXTENSIONS.get(file.mimetype);
+      const ext = path.extname(file.originalname) || "";
       cb(null, `${req.user.id}-${Date.now()}-${randomBytes(4).toString("hex")}${ext}`);
     },
   }),
-  limits: { fileSize: 5 * 1024 * 1024, files: 1 },
-  fileFilter: (_req, file, cb) => {
-    if (!AVATAR_MIME_EXTENSIONS.has(file.mimetype)) {
-      const error = new Error("Formato no admitido. Usa JPG, PNG, WEBP, AVIF o GIF");
-      error.status = 415;
-      return cb(error);
-    }
-    return cb(null, true);
-  },
-});
-
-const handleAvatarUploadError = uploadErrorHandler({
-  LIMIT_FILE_SIZE: "La imagen supera el límite de 5 MB",
-  LIMIT_FILE_COUNT: "Envía una sola imagen",
-  LIMIT_UNEXPECTED_FILE: "Envía la imagen en el campo 'avatar'",
 });
 
 const serializeUser = (user) => ({
@@ -202,7 +174,7 @@ router.patch("/profile", authenticate, async (req, res) => {
   }
 });
 
-router.post("/profile/image", authenticate, avatarUpload.single("avatar"), handleAvatarUploadError, async (req, res) => {
+router.post("/profile/image", authenticate, avatarUpload.single("avatar"), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: "Selecciona una imagen de perfil" });
   }
