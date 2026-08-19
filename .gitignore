@@ -21,3 +21,6 @@ cloudflared.exe
 ngrok.zip
 gh.zip
 gh.msi
+
+# Configuración local de Claude Code / vista previa de desarrollo
+.claude/

@@ -1,10 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import Icon from '../components/Icon';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 
-const tabs = ['Resumen', 'Tareas', 'Calendario', 'Foro', 'Personas'];
+const tabs = [
+  { id: 'Resumen', icon: 'layers' },
+  { id: 'Tareas', icon: 'tasks' },
+  { id: 'Calendario', icon: 'calendar' },
+  { id: 'Foro', icon: 'message' },
+  { id: 'Personas', icon: 'users' }
+];
 
 const assignmentFormInitial = {
   title: '',
@@ -167,44 +174,46 @@ const CommissionDetail = () => {
   const { commission, assignments, recentActivity } = payload;
 
   return (
-    <div style={{ display: 'grid', gap: '1.4rem' }}>
+    <div className="page-stack">
       <section className="classroom-banner">
         <div>
-          <span className="pill" style={{ background: 'rgba(255,255,255,0.18)', color: '#fff' }}>{commission.code}</span>
+          <span className="pill pill-onbrand">{commission.code}</span>
           <h1>{commission.name}</h1>
           <p>{commission.description}</p>
         </div>
         <div className="classroom-banner__meta">
-          <span>{commission.section}</span>
-          <span>{commission.members_count} integrantes</span>
-          <span>{commission.assignments_count} tareas</span>
+          <span><Icon name="building" />{commission.section}</span>
+          <span><Icon name="users" />{commission.members_count} integrantes</span>
+          <span><Icon name="tasks" />{commission.assignments_count} tareas</span>
         </div>
       </section>
 
       <section className="tab-strip">
         {tabs.map((tab) => (
           <button
-            key={tab}
+            key={tab.id}
             type="button"
-            className={`tab-button ${activeTab === tab ? 'is-active' : ''}`}
-            onClick={() => setActiveTab(tab)}
+            className={`tab-button ${activeTab === tab.id ? 'is-active' : ''}`}
+            onClick={() => setActiveTab(tab.id)}
+            aria-pressed={activeTab === tab.id}
           >
-            {tab}
+            <Icon name={tab.icon} />
+            {tab.id}
           </button>
         ))}
       </section>
 
       {activeTab === 'Resumen' ? (
-        <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: '1rem' }}>
+        <div className="split-grid split-grid--wide-first">
           <section className="glass-card classroom-panel">
-            <div className="page-heading">
+            <div className="panel-head">
               <div>
-                <h1 style={{ fontSize: '1.9rem' }}>Actividad reciente</h1>
+                <h2>Actividad reciente</h2>
                 <p>Tablón principal del aula: tareas nuevas, avisos y pulso de la comisión.</p>
               </div>
             </div>
 
-            <div style={{ display: 'grid', gap: '0.9rem', marginTop: '1rem' }}>
+            <div className="stack-sm" style={{ marginTop: '1.15rem' }}>
               {recentActivity.length ? recentActivity.map((item) => (
                 <article key={`${item.item_type}-${item.item_id}`} className="feed-item">
                   <div>
@@ -221,35 +230,50 @@ const CommissionDetail = () => {
           </section>
 
           <section className="glass-card classroom-panel">
-            <div className="page-heading">
+            <div className="panel-head">
               <div>
-                <h1 style={{ fontSize: '1.9rem' }}>Accesos rápidos</h1>
+                <h2>Accesos rápidos</h2>
                 <p>Salta directo a miembros o al tablero global.</p>
               </div>
             </div>
 
-            <div style={{ display: 'grid', gap: '0.9rem', marginTop: '1rem' }}>
-              <Link to="/room/dashboard" className="quick-link-card">Volver al panel general</Link>
-              <button type="button" className="quick-link-card" onClick={() => setActiveTab('Tareas')}>Ir a tareas</button>
-              <button type="button" className="quick-link-card" onClick={() => setActiveTab('Calendario')}>Ver calendario y reuniones</button>
-              <button type="button" className="quick-link-card" onClick={() => setActiveTab('Foro')}>Abrir foro</button>
-              <button type="button" className="quick-link-card" onClick={() => setActiveTab('Personas')}>Ir a personas</button>
+            <div className="stack-sm" style={{ marginTop: '1.15rem' }}>
+              <Link to="/room/dashboard" className="quick-link-card">
+                Volver al panel general
+                <Icon name="arrowRight" />
+              </Link>
+              <button type="button" className="quick-link-card" onClick={() => setActiveTab('Tareas')}>
+                Ir a tareas
+                <Icon name="tasks" />
+              </button>
+              <button type="button" className="quick-link-card" onClick={() => setActiveTab('Calendario')}>
+                Ver calendario y reuniones
+                <Icon name="calendar" />
+              </button>
+              <button type="button" className="quick-link-card" onClick={() => setActiveTab('Foro')}>
+                Abrir foro
+                <Icon name="message" />
+              </button>
+              <button type="button" className="quick-link-card" onClick={() => setActiveTab('Personas')}>
+                Ir a personas
+                <Icon name="users" />
+              </button>
             </div>
           </section>
         </div>
       ) : null}
 
       {activeTab === 'Tareas' ? (
-        <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: '1rem' }}>
+        <div className="split-grid split-grid--wide-first">
           <section className="glass-card classroom-panel">
-            <div className="page-heading">
+            <div className="panel-head">
               <div>
-                <h1 style={{ fontSize: '1.9rem' }}>Trabajo de clase</h1>
+                <h2>Trabajo de clase</h2>
                 <p>Tareas, materiales y rúbricas publicadas dentro de este espacio.</p>
               </div>
             </div>
 
-            <div style={{ display: 'grid', gap: '0.9rem', marginTop: '1rem' }}>
+            <div className="stack-sm" style={{ marginTop: '1.15rem' }}>
               {assignments.length ? assignments.map((assignment) => (
                 <Link key={assignment.id} to={`/room/assignments/${assignment.id}`} className="task-card">
                   <div>
@@ -258,8 +282,10 @@ const CommissionDetail = () => {
                     <p>{assignment.objective}</p>
                   </div>
                   <div className="task-card__meta">
-                    <span>{assignment.status}</span>
-                    <span>{new Date(assignment.deadline).toLocaleDateString('es-DO')}</span>
+                    <span className="status-chip" data-status={assignment.status}>
+                      {assignment.status === 'En Validacion' ? 'En Validacion' : assignment.status}
+                    </span>
+                    <span>{assignment.deadline ? new Date(assignment.deadline).toLocaleDateString('es-DO') : '-'}</span>
                   </div>
                 </Link>
               )) : (
@@ -269,15 +295,15 @@ const CommissionDetail = () => {
           </section>
 
           <section className="glass-card classroom-panel">
-            <div className="page-heading">
+            <div className="panel-head">
               <div>
-                <h1 style={{ fontSize: '1.9rem' }}>Publicar tarea</h1>
+                <h2>Publicar tarea</h2>
                 <p>Disponible para superadmin, secretaría y mesa responsable.</p>
               </div>
             </div>
 
             {canCreateTask ? (
-              <form className="form-grid" onSubmit={submitAssignment} style={{ marginTop: '1rem' }}>
+              <form className="form-grid" onSubmit={submitAssignment}>
                 <div>
                   <label className="label" htmlFor="task-title">Título</label>
                   <input id="task-title" className="input" value={assignmentForm.title} onChange={(event) => setAssignmentForm({ ...assignmentForm, title: event.target.value })} required />
@@ -292,11 +318,11 @@ const CommissionDetail = () => {
                     <option value="TAS-05">TAS-05</option>
                   </select>
                 </div>
-                <div style={{ gridColumn: '1 / -1' }}>
+                <div className="form-full">
                   <label className="label" htmlFor="task-description">Descripción</label>
                   <textarea id="task-description" className="input textarea" value={assignmentForm.description} onChange={(event) => setAssignmentForm({ ...assignmentForm, description: event.target.value })} required />
                 </div>
-                <div style={{ gridColumn: '1 / -1' }}>
+                <div className="form-full">
                   <label className="label" htmlFor="task-objective">Objetivo</label>
                   <textarea id="task-objective" className="input textarea" value={assignmentForm.objective} onChange={(event) => setAssignmentForm({ ...assignmentForm, objective: event.target.value })} required />
                 </div>
@@ -312,29 +338,40 @@ const CommissionDetail = () => {
                   <label className="label" htmlFor="task-deadline">Fecha límite</label>
                   <input id="task-deadline" className="input" type="datetime-local" value={assignmentForm.deadline} onChange={(event) => setAssignmentForm({ ...assignmentForm, deadline: event.target.value })} required />
                 </div>
-                <div style={{ gridColumn: '1 / -1' }}>
+                <div className="form-full">
                   <label className="label" htmlFor="task-criteria">Instrucciones de evaluación</label>
                   <textarea id="task-criteria" className="input textarea" value={assignmentForm.evaluationCriteria} onChange={(event) => setAssignmentForm({ ...assignmentForm, evaluationCriteria: event.target.value })} placeholder="Instrucciones generales adicionales para la evaluación" />
                 </div>
-                <div style={{ gridColumn: '1 / -1' }} className="rubric-builder">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div className="form-full rubric-builder">
+                  <div className="rubric-builder__head">
                     <div>
-                      <h2 style={{ margin: 0, fontSize: '1.1rem' }}>Rúbrica dinámica</h2>
-                      <p style={{ margin: '0.35rem 0 0', color: 'var(--muted)' }}>Define criterios, descripciones y cuánto vale cada parte de la tarea.</p>
+                      <h2>Rúbrica dinámica</h2>
+                      <p>Define criterios, descripciones y cuánto vale cada parte de la tarea.</p>
                     </div>
-                    <button type="button" className="btn btn-muted" onClick={addRubricRow}>Agregar criterio</button>
+                    <button type="button" className="btn btn-muted btn-sm" onClick={addRubricRow}>
+                      <Icon name="plus" />
+                      Agregar criterio
+                    </button>
                   </div>
                   {rubricRows.map((row, index) => (
                     <div className="rubric-row" key={`${row.criterio}-${index}`}>
                       <input className="input" value={row.criterio} onChange={(event) => updateRubricRow(index, 'criterio', event.target.value)} placeholder="Criterio" required />
                       <input className="input" value={row.descripcion} onChange={(event) => updateRubricRow(index, 'descripcion', event.target.value)} placeholder="Descripción del criterio" required />
                       <input className="input" type="number" min="1" value={row.puntos} onChange={(event) => updateRubricRow(index, 'puntos', event.target.value)} aria-label="Puntos" required />
-                      <button type="button" className="btn btn-muted" onClick={() => removeRubricRow(index)} disabled={rubricRows.length === 1}>Quitar</button>
+                      <button
+                        type="button"
+                        className="btn btn-muted btn-sm"
+                        onClick={() => removeRubricRow(index)}
+                        disabled={rubricRows.length === 1}
+                        aria-label={`Quitar criterio ${index + 1}`}
+                      >
+                        <Icon name="close" />
+                      </button>
                     </div>
                   ))}
-                  <strong>Total: {rubricRows.reduce((sum, row) => sum + Number(row.puntos || 0), 0)} pts</strong>
+                  <span className="rubric-total">Total: {rubricRows.reduce((sum, row) => sum + Number(row.puntos || 0), 0)} pts</span>
                 </div>
-                <button type="submit" className="btn btn-primary">Publicar tarea</button>
+                <div className="form-actions"><button type="submit" className="btn btn-primary"><Icon name="check" />Publicar tarea</button></div>
               </form>
             ) : (
               <div className="empty-card">Tu rol solo puede consultar el trabajo de clase de la comisión.</div>
@@ -344,11 +381,11 @@ const CommissionDetail = () => {
       ) : null}
 
       {activeTab === 'Calendario' ? (
-        <div style={{ display: 'grid', gridTemplateColumns: '1.05fr 0.95fr', gap: '1rem' }}>
+        <div className="split-grid split-grid--wide-first">
           <section className="glass-card classroom-panel">
-            <div className="page-heading">
+            <div className="panel-head">
               <div>
-                <h1 style={{ fontSize: '1.9rem' }}>Calendario de reuniones</h1>
+                <h2>Calendario de reuniones</h2>
                 <p>Enlaces de Google Meet, Zoom o Teams para que los delegados entren desde el día programado.</p>
               </div>
             </div>
@@ -363,8 +400,16 @@ const CommissionDetail = () => {
                     <h3>{item.title}</h3>
                     <p>{item.platform} - {new Date(item.date).toLocaleString('es-DO')}</p>
                     <div className="meeting-actions">
-                      <a className="btn btn-primary" href={item.link} target="_blank" rel="noreferrer">Entrar a reunión</a>
-                      {item.recording ? <a className="btn btn-muted" href={item.recording} target="_blank" rel="noreferrer">Ver grabación</a> : null}
+                      <a className="btn btn-primary btn-sm" href={item.link} target="_blank" rel="noreferrer">
+                        <Icon name="video" />
+                        Entrar a reunión
+                      </a>
+                      {item.recording ? (
+                        <a className="btn btn-muted btn-sm" href={item.recording} target="_blank" rel="noreferrer">
+                          <Icon name="link" />
+                          Ver grabación
+                        </a>
+                      ) : null}
                     </div>
                   </div>
                 </article>
@@ -375,15 +420,15 @@ const CommissionDetail = () => {
           </section>
 
           <section className="glass-card classroom-panel">
-            <div className="page-heading">
+            <div className="panel-head">
               <div>
-                <h1 style={{ fontSize: '1.9rem' }}>Crear reunión</h1>
+                <h2>Crear reunión</h2>
                 <p>La mesa directiva puede agregar enlaces y videos de grabación.</p>
               </div>
             </div>
             {canCreateTask ? (
-              <form className="form-grid" onSubmit={submitEvent} style={{ marginTop: '1rem' }}>
-                <div style={{ gridColumn: '1 / -1' }}>
+              <form className="form-grid" onSubmit={submitEvent}>
+                <div className="form-full">
                   <label className="label" htmlFor="meeting-title">Título</label>
                   <input id="meeting-title" className="input" value={eventForm.title} onChange={(event) => setEventForm({ ...eventForm, title: event.target.value })} required />
                 </div>
@@ -399,15 +444,15 @@ const CommissionDetail = () => {
                     <option value="Microsoft Teams">Microsoft Teams</option>
                   </select>
                 </div>
-                <div style={{ gridColumn: '1 / -1' }}>
+                <div className="form-full">
                   <label className="label" htmlFor="meeting-link">Enlace de reunión</label>
                   <input id="meeting-link" className="input" type="url" value={eventForm.link} onChange={(event) => setEventForm({ ...eventForm, link: event.target.value })} required />
                 </div>
-                <div style={{ gridColumn: '1 / -1' }}>
+                <div className="form-full">
                   <label className="label" htmlFor="meeting-recording">Video de grabación</label>
                   <input id="meeting-recording" className="input" type="url" value={eventForm.recording} onChange={(event) => setEventForm({ ...eventForm, recording: event.target.value })} placeholder="Opcional" />
                 </div>
-                <button type="submit" className="btn btn-primary">Guardar reunión</button>
+                <div className="form-actions"><button type="submit" className="btn btn-primary"><Icon name="check" />Guardar reunión</button></div>
               </form>
             ) : (
               <div className="empty-card">Tu rol puede visualizar reuniones y abrir enlaces disponibles.</div>
@@ -417,15 +462,15 @@ const CommissionDetail = () => {
       ) : null}
 
       {activeTab === 'Foro' ? (
-        <div style={{ display: 'grid', gridTemplateColumns: '0.9fr 1.1fr', gap: '1rem' }}>
+        <div className="split-grid split-grid--wide-last">
           <section className="glass-card classroom-panel">
-            <div className="page-heading">
+            <div className="panel-head">
               <div>
-                <h1 style={{ fontSize: '1.9rem' }}>Nuevo tema</h1>
+                <h2>Nuevo tema</h2>
                 <p>Espacio profesional para dudas, acuerdos y avisos de la comisión.</p>
               </div>
             </div>
-            <form onSubmit={submitForumPost} style={{ display: 'grid', gap: '1rem', marginTop: '1rem' }}>
+            <form onSubmit={submitForumPost} className="stack" style={{ marginTop: '1.15rem' }}>
               <div>
                 <label className="label" htmlFor="forum-title">Título</label>
                 <input id="forum-title" className="input" value={forumForm.title} onChange={(event) => setForumForm({ ...forumForm, title: event.target.value })} required />
@@ -434,18 +479,18 @@ const CommissionDetail = () => {
                 <label className="label" htmlFor="forum-body">Mensaje</label>
                 <textarea id="forum-body" className="input textarea" value={forumForm.body} onChange={(event) => setForumForm({ ...forumForm, body: event.target.value })} required />
               </div>
-              <button type="submit" className="btn btn-primary">Publicar en foro</button>
+              <button type="submit" className="btn btn-primary"><Icon name="message" />Publicar en foro</button>
             </form>
           </section>
 
           <section className="glass-card classroom-panel">
-            <div className="page-heading">
+            <div className="panel-head">
               <div>
-                <h1 style={{ fontSize: '1.9rem' }}>Foro de aula</h1>
+                <h2>Foro de aula</h2>
                 <p>Conversaciones guardadas para la comisión actual.</p>
               </div>
             </div>
-            <div style={{ display: 'grid', gap: '0.9rem', marginTop: '1rem' }}>
+            <div className="stack-sm" style={{ marginTop: '1.15rem' }}>
               {forumPosts.length ? forumPosts.map((post) => (
                 <article className="forum-post" key={post.id}>
                   <div>
@@ -463,16 +508,16 @@ const CommissionDetail = () => {
       ) : null}
 
       {activeTab === 'Personas' ? (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+        <div className="split-grid split-grid--even">
           <section className="glass-card classroom-panel">
-            <div className="page-heading">
+            <div className="panel-head">
               <div>
-                <h1 style={{ fontSize: '1.9rem' }}>Mesa directiva</h1>
+                <h2>Mesa directiva</h2>
                 <p>Responsables del aula y su coordinación.</p>
               </div>
             </div>
 
-            <div style={{ display: 'grid', gap: '0.9rem', marginTop: '1rem' }}>
+            <div className="stack-sm" style={{ marginTop: '1.15rem' }}>
               {groupedPeople.mesa.map((person) => (
                 <article key={person.id} className="person-card">
                   <strong>{person.full_name}</strong>
@@ -483,14 +528,14 @@ const CommissionDetail = () => {
           </section>
 
           <section className="glass-card classroom-panel">
-            <div className="page-heading">
+            <div className="panel-head">
               <div>
-                <h1 style={{ fontSize: '1.9rem' }}>Delegadas e integrantes</h1>
+                <h2>Delegadas e integrantes</h2>
                 <p>Miembros vinculados a la comisión.</p>
               </div>
             </div>
 
-            <div style={{ display: 'grid', gap: '0.9rem', marginTop: '1rem' }}>
+            <div className="stack-sm" style={{ marginTop: '1.15rem' }}>
               {groupedPeople.delegado.map((person) => (
                 <article key={person.id} className="person-card">
                   <strong>{person.full_name}</strong>
@@ -501,30 +546,31 @@ const CommissionDetail = () => {
           </section>
 
           <section className="glass-card classroom-panel" style={{ gridColumn: '1 / -1' }}>
-            <div className="page-heading">
+            <div className="panel-head">
               <div>
-                <h1 style={{ fontSize: '1.9rem' }}>Agregar integrante</h1>
+                <h2>Agregar integrante</h2>
                 <p>Al crear la cuenta se genera una contraseña temporal única. Se muestra una sola vez: cópiala y entrégasela a su titular.</p>
               </div>
             </div>
 
             {newCredential ? (
-              <div className="glass-card" style={{ marginTop: '1rem', padding: '1rem', borderLeft: '4px solid #38bdf8' }}>
+              <div className="credential-card">
                 <strong>Contraseña temporal de {newCredential.email}</strong>
-                <p style={{ margin: '0.5rem 0' }}>
-                  <code style={{ fontSize: '1.1rem', userSelect: 'all' }}>{newCredential.password}</code>
-                </p>
-                <p style={{ margin: 0, opacity: 0.8 }}>
+                <code>{newCredential.password}</code>
+                <p className="field-hint">
                   Anótala ahora: no se puede volver a consultar. Pídele que la cambie al entrar.
                 </p>
-                <button type="button" className="btn" style={{ marginTop: '0.75rem' }} onClick={() => setNewCredential(null)}>
-                  Ya la copié
-                </button>
+                <div>
+                  <button type="button" className="btn btn-muted btn-sm" onClick={() => setNewCredential(null)}>
+                    <Icon name="check" />
+                    Ya la copié
+                  </button>
+                </div>
               </div>
             ) : null}
 
             {canManagePeople ? (
-              <form className="form-grid" onSubmit={submitPerson} style={{ marginTop: '1rem' }}>
+              <form className="form-grid" onSubmit={submitPerson}>
                 <div>
                   <label className="label" htmlFor="person-full-name">Nombre completo</label>
                   <input id="person-full-name" className="input" value={personForm.fullName} onChange={(event) => setPersonForm({ ...personForm, fullName: event.target.value })} required />
@@ -540,8 +586,8 @@ const CommissionDetail = () => {
                     <option value="mesa">Mesa</option>
                   </select>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'end' }}>
-                  <button type="submit" className="btn btn-primary">Agregar integrante</button>
+                <div className="form-actions">
+                  <button type="submit" className="btn btn-primary"><Icon name="plus" />Agregar integrante</button>
                 </div>
               </form>
             ) : (

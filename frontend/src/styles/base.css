@@ -1,0 +1,267 @@
+/* ==========================================================================
+   MINUME ROOM · Base, reset y utilidades
+   ========================================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+/* Nunca scroll horizontal: `clip` recorta sin crear contexto de scroll,
+   así los elementos sticky (topbar, sidebar) siguen funcionando. */
+html,
+body {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--text);
+  background-color: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Bloqueo de scroll cuando hay un panel modal/drawer abierto */
+body.has-locked-scroll {
+  overflow: hidden;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.16;
+  color: var(--text);
+  text-wrap: balance;
+}
+
+p {
+  line-height: 1.65;
+  text-wrap: pretty;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+img,
+video,
+canvas,
+svg,
+table,
+pre {
+  max-width: 100%;
+}
+
+svg {
+  flex: none;
+}
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.94em;
+}
+
+::selection {
+  background: var(--brand-200);
+  color: var(--brand-900);
+}
+
+html[data-theme='dark'] ::selection {
+  background: rgba(96, 144, 251, 0.4);
+  color: #fff;
+}
+
+:where(a, button, input, textarea, select, summary, [tabindex]):focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: var(--r-xs);
+}
+
+/* --- Scrollbars discretas en tono de marca --- */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  background-clip: content-box;
+  border: 3px solid transparent;
+  border-radius: var(--r-full);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+  background-clip: content-box;
+}
+
+/* ==========================================================================
+   Utilidades
+   ========================================================================== */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: fixed;
+  top: 0.65rem;
+  left: 0.65rem;
+  z-index: 400;
+  padding: 0.7rem 1.1rem;
+  border-radius: var(--r-sm);
+  background: var(--primary);
+  color: var(--primary-contrast);
+  font-weight: 700;
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-180%);
+  transition: transform var(--dur-2) var(--ease-out);
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+.stack {
+  display: grid;
+  gap: 1.25rem;
+  align-content: start;
+  min-width: 0;
+}
+
+.stack-sm {
+  display: grid;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.eyebrow {
+  display: block;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.divider {
+  height: 1px;
+  margin: 0;
+  border: 0;
+  background: var(--line);
+}
+
+/* --- Pantalla de carga --- */
+.loading-screen {
+  display: grid;
+  place-items: center;
+  min-height: 46vh;
+  padding: 3rem 1rem;
+}
+
+.spinner {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 3px solid var(--line);
+  border-top-color: var(--primary);
+  animation: minume-spin 720ms linear infinite;
+}
+
+@keyframes minume-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* --- Aparición suave del contenido de página --- */
+@keyframes minume-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes minume-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* --- Respeto por las preferencias de movimiento --- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* --- Notificaciones (react-toastify) alineadas al sistema --- */
+.Toastify__toast {
+  border-radius: var(--r-md) !important;
+  font-family: var(--font-body) !important;
+  box-shadow: var(--shadow-lg) !important;
+}

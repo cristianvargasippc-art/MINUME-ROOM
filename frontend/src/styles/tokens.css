@@ -1,0 +1,172 @@
+/* ==========================================================================
+   MINUME ROOM · Tokens de diseño
+   Paleta azul institucional, elevación, tipografía, movimiento y métricas.
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* --- Escala institucional MINUME (azul) --- */
+  --brand-50: #eef4ff;
+  --brand-100: #dbe7ff;
+  --brand-200: #bdd3ff;
+  --brand-300: #93b5ff;
+  --brand-400: #6090fb;
+  --brand-500: #316cef;
+  --brand-600: #1c4fd4;
+  --brand-700: #163ea8;
+  --brand-800: #143585;
+  --brand-900: #102a63;
+  --brand-950: #08183a;
+
+  --sky-300: #7dd3fc;
+  --sky-400: #38bdf8;
+  --sky-500: #0ea5e9;
+
+  /* --- Superficies --- */
+  --bg: #f2f6fd;
+  --surface: #ffffff;
+  --surface-2: #f7f9fe;
+  --surface-3: #eaf1fb;
+  --surface-sunken: #e6edf9;
+  --overlay: rgba(8, 24, 58, 0.52);
+
+  /* --- Texto --- */
+  --text: #0e1d33;
+  --text-soft: #3a5170;
+  --muted: #55698c;
+  --text-onbrand: #ffffff;
+
+  /* --- Bordes --- */
+  --line: rgba(14, 29, 51, 0.1);
+  --line-strong: rgba(14, 29, 51, 0.18);
+  --line-brand: rgba(49, 108, 239, 0.22);
+
+  /* --- Semánticos --- */
+  --primary: var(--brand-600);
+  --primary-hover: var(--brand-700);
+  --primary-soft: var(--brand-50);
+  --primary-contrast: #ffffff;
+  --accent: var(--sky-500);
+  --success: #0f7a58;
+  --success-soft: #e3f6ee;
+  --warning: #a3620f;
+  --warning-soft: #fdf1de;
+  --danger: #bf372d;
+  --danger-soft: #fdeceb;
+  --info: var(--brand-600);
+  --info-soft: var(--brand-50);
+  --ring: rgba(49, 108, 239, 0.42);
+
+  /* --- Alias heredados (mantienen compatibilidad con el marcado previo) --- */
+  --panel: rgba(255, 255, 255, 0.88);
+  --panel-strong: #ffffff;
+  --primary-deep: var(--brand-800);
+  --button-bg: var(--brand-600);
+  --button-hover: var(--brand-700);
+  --button-muted-bg: var(--surface-3);
+  --button-muted-text: var(--text);
+  --card-bg: #ffffff;
+  --soft-bg: var(--surface-2);
+
+  /* --- Elevación --- */
+  --shadow-xs: 0 1px 2px rgba(10, 32, 68, 0.06);
+  --shadow-sm: 0 2px 6px rgba(10, 32, 68, 0.07), 0 1px 2px rgba(10, 32, 68, 0.05);
+  --shadow-md: 0 10px 24px -12px rgba(10, 32, 68, 0.22), 0 2px 6px rgba(10, 32, 68, 0.06);
+  --shadow-lg: 0 24px 48px -22px rgba(10, 32, 68, 0.3), 0 4px 12px rgba(10, 32, 68, 0.07);
+  --shadow-xl: 0 40px 80px -32px rgba(10, 32, 68, 0.38);
+  --shadow-brand: 0 14px 30px -12px rgba(28, 79, 212, 0.55);
+  --shadow: var(--shadow-md);
+
+  /* --- Radios --- */
+  --r-xs: 8px;
+  --r-sm: 12px;
+  --r-md: 16px;
+  --r-lg: 22px;
+  --r-xl: 28px;
+  --r-full: 999px;
+  --radius-lg: var(--r-xl);
+  --radius-md: var(--r-md);
+  --radius-sm: var(--r-sm);
+
+  /* --- Tipografía --- */
+  --font-display: "Plus Jakarta Sans", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-heading: var(--font-display);
+  --font-mono: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, monospace;
+
+  /* --- Movimiento --- */
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-1: 120ms;
+  --dur-2: 200ms;
+  --dur-3: 320ms;
+
+  /* --- Métricas del shell --- */
+  --sidebar-w: 278px;
+  --sidebar-rail: 88px;
+  --topbar-h: 66px;
+  --bottomnav-h: 68px;
+  --content-max: 1500px;
+  --gutter: clamp(0.9rem, 2.2vw, 2rem);
+
+  /* --- Gradientes de marca --- */
+  --grad-brand: linear-gradient(135deg, var(--brand-700) 0%, var(--brand-500) 58%, var(--sky-500) 135%);
+  --grad-deep: linear-gradient(168deg, #0b2050 0%, #08183a 62%, #061530 100%);
+  --grad-sheen: linear-gradient(120deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0) 46%);
+  --grad-page: radial-gradient(1100px 620px at 6% -12%, rgba(49, 108, 239, 0.11), transparent 62%),
+    radial-gradient(900px 520px at 104% -4%, rgba(56, 189, 248, 0.12), transparent 58%);
+}
+
+html[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #060f22;
+  --surface: #0c1a33;
+  --surface-2: #10203d;
+  --surface-3: #152949;
+  --surface-sunken: #0a1730;
+  --overlay: rgba(2, 8, 20, 0.68);
+
+  --text: #eaf1fb;
+  --text-soft: #c2d2e8;
+  --muted: #93a9c6;
+
+  --line: rgba(151, 187, 235, 0.14);
+  --line-strong: rgba(151, 187, 235, 0.26);
+  --line-brand: rgba(96, 144, 251, 0.34);
+
+  --primary: #5f8dfb;
+  --primary-hover: #7ba4ff;
+  --primary-soft: rgba(96, 144, 251, 0.15);
+  --primary-contrast: #05122b;
+  --accent: var(--sky-400);
+  --success: #4fd1a5;
+  --success-soft: rgba(79, 209, 165, 0.15);
+  --warning: #f0b45f;
+  --warning-soft: rgba(240, 180, 95, 0.15);
+  --danger: #ff8f85;
+  --danger-soft: rgba(255, 143, 133, 0.15);
+  --info-soft: rgba(96, 144, 251, 0.15);
+  --ring: rgba(125, 168, 255, 0.55);
+
+  --panel: rgba(12, 26, 51, 0.9);
+  --panel-strong: #0c1a33;
+  --button-bg: #2f68ee;
+  --button-hover: #4b83ff;
+  --button-muted-bg: #16294a;
+  --button-muted-text: #eaf1fb;
+  --card-bg: #0c1a33;
+  --soft-bg: #10203d;
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.42);
+  --shadow-md: 0 12px 28px -14px rgba(0, 0, 0, 0.72), 0 2px 6px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 28px 56px -26px rgba(0, 0, 0, 0.8), 0 4px 14px rgba(0, 0, 0, 0.42);
+  --shadow-xl: 0 48px 92px -36px rgba(0, 0, 0, 0.9);
+  --shadow-brand: 0 16px 34px -16px rgba(47, 104, 238, 0.7);
+
+  --grad-deep: linear-gradient(168deg, #0d1f43 0%, #081733 62%, #050f24 100%);
+  --grad-page: radial-gradient(1100px 620px at 6% -12%, rgba(49, 108, 239, 0.16), transparent 62%),
+    radial-gradient(900px 520px at 104% -4%, rgba(14, 165, 233, 0.12), transparent 58%);
+}

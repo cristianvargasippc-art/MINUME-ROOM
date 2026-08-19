@@ -1,20 +1,27 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import StatCard from '../components/StatCard';
+import Icon from '../components/Icon';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import api from '../services/api';
 
 const statusTones = {
-  Borrador: '#7a8597',
-  Asignada: '#0b5fff',
-  'En Progreso': '#d18616',
-  Entregada: '#1f8ad6',
-  'En Validacion': '#0f65c9',
-  Evaluada: '#138a63',
-  Rechazada: '#c53f3f',
-  Vencida: '#8d1f1f'
+  Borrador: 'var(--muted)',
+  Asignada: 'var(--primary)',
+  'En Progreso': 'var(--warning)',
+  Entregada: 'var(--accent)',
+  'En Validacion': 'var(--primary)',
+  Evaluada: 'var(--success)',
+  Rechazada: 'var(--danger)',
+  Vencida: 'var(--danger)'
 };
+
+const normalizeStatus = (status) => (status === 'En Validacion' ? 'En Validación' : status);
+
+// La API puede devolver un error o una respuesta intermedia del proxy:
+// nunca confiamos en que la respuesta sea el arreglo esperado.
+const toList = (value) => (Array.isArray(value) ? value : []);
 
 const getGreeting = (t) => {
   const hour = new Date().getHours();
@@ -32,7 +39,7 @@ const getGreeting = (t) => {
 
 const Dashboard = () => {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [metrics, setMetrics] = useState(null);
   const [pipeline, setPipeline] = useState(null);
   const [commissions, setCommissions] = useState([]);
@@ -54,17 +61,20 @@ const Dashboard = () => {
       if (mounted) {
         setMetrics(metricsResponse.data);
         setPipeline(pipelineResponse.data);
-        setCommissions(commissionsResponse.data);
-        setAssignments(assignmentsResponse.data);
+        setCommissions(toList(commissionsResponse.data));
+        setAssignments(toList(assignmentsResponse.data));
         setError('');
         setLoading(false);
       }
     };
 
     loadData().catch(() => {
-      setError('No se pudo cargar el panel. Verifica que el backend esté activo en http://localhost:3001.');
-      setLoading(false);
+      if (mounted) {
+        setError(t('loadError'));
+        setLoading(false);
+      }
     });
+
     const interval = setInterval(() => {
       loadData().catch(() => null);
     }, 30000);
@@ -73,6 +83,7 @@ const Dashboard = () => {
       mounted = false;
       clearInterval(interval);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const upcomingAssignments = useMemo(() => (
@@ -81,6 +92,8 @@ const Dashboard = () => {
       .sort((a, b) => new Date(a.deadline) - new Date(b.deadline))
       .slice(0, 5)
   ), [assignments]);
+
+  const locale = language === 'en' ? 'en-US' : 'es-DO';
 
   if (loading) {
     return (
@@ -94,94 +107,154 @@ const Dashboard = () => {
     <div className="dashboard-page">
       <section className="dashboard-hero">
         <div>
-          <span className="pill dashboard-kicker">{t('academicCenter')}</span>
+          <span className="pill dashboard-kicker">
+            <Icon name="sparkles" size={14} />
+            {t('academicCenter')}
+          </span>
           <h1>{getGreeting(t)}, {user?.fullName?.split(' ')[0] || 'delegado'}</h1>
           <p>{t('dashboardCopy')}</p>
+
+          <div className="hero-meta">
+            <span>
+              <Icon name="users" />
+              {commissions.length} {t('commissions').toLowerCase()}
+            </span>
+            <span>
+              <Icon name="tasks" />
+              {metrics?.activeTasks || 0} {t('activeTasks').toLowerCase()}
+            </span>
+            <span>
+              <Icon name="clock" />
+              {new Date().toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' })}
+            </span>
+          </div>
         </div>
-        <Link className="btn btn-primary" to="/room/assignments">{t('tasks')}</Link>
+
+        <div className="dashboard-hero__actions">
+          <Link className="btn btn-primary" to="/room/assignments">
+            <Icon name="tasks" />
+            {t('tasks')}
+          </Link>
+          <Link className="btn btn-muted" to="/room/commissions">
+            <Icon name="users" />
+            {t('commissions')}
+          </Link>
+        </div>
       </section>
 
       {error ? (
-        <section className="empty-card" style={{ borderColor: 'rgba(197,63,63,0.28)', color: 'var(--danger)' }}>
-          {error}
+        <section className="notice" role="alert">
+          <Icon name="alert" />
+          <span>{error}</span>
         </section>
       ) : null}
 
       <section className="dashboard-metrics">
-        <StatCard label={t('visibleCommissions')} value={commissions.length} tone="#0b5fff" helper="MINUME ROOM" />
-        <StatCard label={t('activeTasks')} value={metrics?.activeTasks || 0} tone="var(--accent)" helper="Classwork" />
-        <StatCard label={t('deliveryRate')} value={`${metrics?.deliveryRate || 0}%`} tone="var(--success)" helper="Submissions" />
-        <StatCard label={t('pendingAlerts')} value={metrics?.unreadAlerts || 0} tone="#0f65c9" helper="Room updates" />
+        <StatCard label={t('visibleCommissions')} value={commissions.length} tone="var(--primary)" helper="MINUME ROOM" icon="users" />
+        <StatCard label={t('activeTasks')} value={metrics?.activeTasks || 0} tone="var(--accent)" helper="Classwork" icon="tasks" />
+        <StatCard label={t('deliveryRate')} value={`${metrics?.deliveryRate || 0}%`} tone="var(--success)" helper="Submissions" icon="trendUp" />
+        <StatCard label={t('pendingAlerts')} value={metrics?.unreadAlerts || 0} tone="var(--warning)" helper="Room updates" icon="bell" />
       </section>
 
-      <section className="dashboard-grid">
+      <section className="split-grid split-grid--wide-first">
         <article className="glass-card classroom-panel">
-          <div className="page-heading">
-            <div>
-              <h1 style={{ fontSize: '1.7rem' }}>{t('taskRhythm')}</h1>
-              <p>Estado general del trabajo académico de tus comisiones.</p>
+          <div className="panel-head">
+            <div className="panel-title">
+              <span className="panel-head__icon"><Icon name="layers" /></span>
+              <div>
+                <h2>{t('taskRhythm')}</h2>
+                <p>{t('pipelineCopy')}</p>
+              </div>
             </div>
           </div>
 
-          <div className="status-grid" style={{ marginTop: '1.25rem' }}>
+          <div className="status-grid">
             {Object.entries(pipeline || {}).map(([status, count]) => (
               <article className="status-tile" key={status}>
-                <p>{status === 'En Validacion' ? 'En Validación' : status}</p>
-                <strong style={{ color: statusTones[status] }}>{count}</strong>
+                <p>{normalizeStatus(status)}</p>
+                <strong style={{ color: statusTones[status] || 'var(--text)' }}>{count}</strong>
               </article>
             ))}
+            {!pipeline || !Object.keys(pipeline).length ? (
+              <div className="empty-card">
+                <Icon name="layers" />
+                <strong>{t('noAssignments')}</strong>
+              </div>
+            ) : null}
           </div>
         </article>
 
         <article className="glass-card classroom-panel">
-          <div className="page-heading">
-            <div>
-              <h1 style={{ fontSize: '1.7rem' }}>{t('upcomingAgenda')}</h1>
-              <p>Fechas de entrega ordenadas por prioridad.</p>
+          <div className="panel-head">
+            <div className="panel-title">
+              <span className="panel-head__icon"><Icon name="calendar" /></span>
+              <div>
+                <h2>{t('upcomingAgenda')}</h2>
+                <p>{t('agendaCopy')}</p>
+              </div>
             </div>
           </div>
 
           <div className="agenda-list">
             {upcomingAssignments.length ? upcomingAssignments.map((assignment) => (
               <Link key={assignment.id} to={`/room/assignments/${assignment.id}`} className="agenda-item">
-                <span>{new Date(assignment.deadline).toLocaleDateString('es-DO', { day: '2-digit', month: 'short' })}</span>
+                <span>
+                  {new Date(assignment.deadline).toLocaleDateString(locale, { day: '2-digit', month: 'short' })}
+                </span>
                 <div>
                   <strong>{assignment.title}</strong>
-                  <p>{assignment.commission_name || 'Aula general'}</p>
+                  <p>{assignment.commission_name || t('generalRoom')}</p>
                 </div>
+                <span className="agenda-item__chevron"><Icon name="chevronRight" /></span>
               </Link>
             )) : (
-              <div className="empty-card">No hay fechas próximas registradas.</div>
+              <div className="empty-card">
+                <Icon name="calendar" />
+                <strong>{t('noUpcoming')}</strong>
+              </div>
             )}
           </div>
         </article>
       </section>
 
       <section className="glass-card classroom-panel">
-        <div className="page-heading">
-          <div>
-            <h1 style={{ fontSize: '1.7rem' }}>{t('recentAssignments')}</h1>
-            <p>Acceso directo a las tareas publicadas, su rúbrica y su estado de entrega.</p>
+        <div className="panel-head">
+          <div className="panel-title">
+            <span className="panel-head__icon"><Icon name="tasks" /></span>
+            <div>
+              <h2>{t('recentAssignments')}</h2>
+              <p>{t('recentCopy')}</p>
+            </div>
           </div>
-          <Link className="btn btn-primary" to="/room/assignments">{t('viewAll')}</Link>
+          <Link className="btn btn-muted btn-sm" to="/room/assignments">
+            {t('viewAll')}
+            <Icon name="arrowRight" />
+          </Link>
         </div>
 
         <div className="dashboard-task-list">
           {assignments.slice(0, 6).map((assignment) => (
             <Link key={assignment.id} to={`/room/assignments/${assignment.id}`} className="task-card">
               <div>
-                <div className="eyebrow">{assignment.commission_name || 'Aula general'}</div>
+                <span className="eyebrow">{assignment.commission_name || t('generalRoom')}</span>
                 <strong>{assignment.title}</strong>
                 <p>{assignment.objective}</p>
               </div>
               <div className="task-card__meta">
-                <span>{assignment.status === 'En Validacion' ? 'En Validación' : assignment.status}</span>
-                <span>{new Date(assignment.deadline).toLocaleDateString('es-DO')}</span>
+                <span className="status-chip" data-status={assignment.status}>
+                  {normalizeStatus(assignment.status)}
+                </span>
+                <span>
+                  {assignment.deadline ? new Date(assignment.deadline).toLocaleDateString(locale) : '—'}
+                </span>
               </div>
             </Link>
           ))}
           {!assignments.length ? (
-            <div className="empty-card">Aún no hay asignaciones publicadas para tu cuenta.</div>
+            <div className="empty-card">
+              <Icon name="tasks" />
+              <strong>{t('noAssignments')}</strong>
+            </div>
           ) : null}
         </div>
       </section>

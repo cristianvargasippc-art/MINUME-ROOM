@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import Icon from '../components/Icon';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import api, { getApiBaseUrl } from '../services/api';
@@ -171,13 +172,16 @@ const AssignmentDetail = () => {
     <div className="assignment-page">
       <section className="assignment-hero">
         <div>
-          <span className="pill assignment-hero__pill">{t('assignmentDetail')}</span>
+          <span className="pill assignment-hero__pill">
+            <Icon name="tasks" size={14} />
+            {t('assignmentDetail')}
+          </span>
           <h1>{assignment.title}</h1>
           <p>{t('assignmentDetailCopy')}</p>
         </div>
         <div className="assignment-hero__status">
           <span>{t('status')}</span>
-          <strong>{assignment.status}</strong>
+          <strong>{assignment.status === 'En Validacion' ? 'En Validación' : assignment.status}</strong>
         </div>
       </section>
 
@@ -203,9 +207,12 @@ const AssignmentDetail = () => {
 
             <article className="rubric-detail">
               <div className="rubric-detail__heading">
-                <div>
-                  <h2>{t('rubric')}</h2>
-                  <p>{t('rubricCopy')}</p>
+                <div className="panel-title">
+                  <span className="panel-head__icon"><Icon name="award" /></span>
+                  <div>
+                    <h2>{t('rubric')}</h2>
+                    <p>{t('rubricCopy')}</p>
+                  </div>
                 </div>
                 <span className="pill pill-blue">{rubricTotal || 0} {t('points').toLowerCase()}</span>
               </div>
@@ -241,10 +248,16 @@ const AssignmentDetail = () => {
                 <h2>{t('submitDocument')}</h2>
                 <form onSubmit={handleSubmit} className="submission-form">
                   <div>
-                    <input type="file" accept=".pdf,.doc,.docx,.odt,.ppt,.pptx,.odp,.xls,.xlsx,.ods,.csv" onChange={(event) => setSelectedFile(event.target.files[0] || null)} />
+                    <input
+                      className="input"
+                      type="file"
+                      accept=".pdf,.doc,.docx,.odt,.ppt,.pptx,.odp,.xls,.xlsx,.ods,.csv"
+                      onChange={(event) => setSelectedFile(event.target.files[0] || null)}
+                    />
                     <p>{t('submitDocumentCopy')}</p>
                   </div>
                   <button type="submit" className="btn btn-primary" disabled={uploading}>
+                    <Icon name="upload" />
                     {uploading ? t('uploading') : t('upload')}
                   </button>
                 </form>
@@ -266,6 +279,7 @@ const AssignmentDetail = () => {
                           </p>
                         </div>
                         <a href={`${getApiBaseUrl()}${submission.file_url}`} target="_blank" rel="noreferrer">
+                          <Icon name="download" size={15} />
                           {t('viewFile')}
                         </a>
                       </div>
@@ -318,6 +332,7 @@ const AssignmentDetail = () => {
                               disabled={gradingSubmissionId === submission.id}
                               onClick={() => submitEvaluation(submission, 'grade')}
                             >
+                              <Icon name="checkCircle" />
                               {t('grade')}
                             </button>
                             <button
@@ -326,6 +341,7 @@ const AssignmentDetail = () => {
                               disabled={gradingSubmissionId === submission.id}
                               onClick={() => submitEvaluation(submission, 'return')}
                             >
+                              <Icon name="arrowLeft" />
                               {t('returnTask')}
                             </button>
                           </div>

@@ -1,14 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import Icon from '../components/Icon';
+import StatCard from '../components/StatCard';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 
 const themeStyles = {
-  sunrise: 'linear-gradient(135deg, #0b5fff 0%, #084bbf 100%)',
-  ocean: 'linear-gradient(135deg, #1d5fff 0%, #12a4d9 100%)',
-  forest: 'linear-gradient(135deg, #0f3d70 0%, #1f8ad6 100%)',
-  ember: 'linear-gradient(135deg, #08234a 0%, #0b5fff 100%)'
+  sunrise: 'linear-gradient(135deg, #163ea8 0%, #316cef 100%)',
+  ocean: 'linear-gradient(135deg, #1c4fd4 0%, #0ea5e9 100%)',
+  forest: 'linear-gradient(135deg, #102a63 0%, #38bdf8 130%)',
+  ember: 'linear-gradient(135deg, #08183a 0%, #2f68ee 100%)'
 };
 
 const initialForm = {
@@ -25,12 +27,13 @@ const Commissions = () => {
   const [commissions, setCommissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(initialForm);
   const canManage = ['superadmin', 'secretaria'].includes(user?.role);
 
   const loadCommissions = async () => {
     const response = await api.get('/api/commissions');
-    setCommissions(response.data);
+    setCommissions(Array.isArray(response.data) ? response.data : []);
     setLoading(false);
   };
 
@@ -48,15 +51,18 @@ const Commissions = () => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    setSaving(true);
 
     try {
       await api.post('/api/commissions', form);
       toast.success('Comisión creada correctamente');
       setForm(initialForm);
       setShowForm(false);
-      loadCommissions();
+      await loadCommissions();
     } catch (error) {
       toast.error(error.response?.data?.error || 'No se pudo crear la comisión');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -69,47 +75,45 @@ const Commissions = () => {
   }
 
   return (
-    <div style={{ display: 'grid', gap: '1.4rem' }}>
+    <div className="page-stack">
       <section className="page-heading">
         <div>
-          <span className="pill pill-blue">Espacios de aula</span>
+          <span className="pill pill-blue">
+            <Icon name="building" size={14} />
+            Espacios de aula
+          </span>
           <h1>Comisiones MINUME XVII</h1>
-          <p>
-            Cada comisión funciona como un espacio académico con tareas, personas y seguimiento propio.
-          </p>
+          <p>Cada comisión funciona como un espacio académico con tareas, personas y seguimiento propio.</p>
         </div>
         {canManage ? (
-          <button type="button" className="btn btn-primary" onClick={() => setShowForm((value) => !value)}>
-            {showForm ? 'Cerrar formulario' : 'Nueva comisión'}
-          </button>
+          <div className="page-heading__actions">
+            <button type="button" className="btn btn-primary" onClick={() => setShowForm((value) => !value)}>
+              <Icon name={showForm ? 'close' : 'plus'} />
+              {showForm ? 'Cerrar formulario' : 'Nueva comisión'}
+            </button>
+          </div>
         ) : null}
       </section>
 
       <section className="dashboard-metrics">
-        <article className="glass-card classroom-panel">
-          <div className="eyebrow">Comisiones</div>
-          <div className="metric-value">{commissions.length}</div>
-        </article>
-        <article className="glass-card classroom-panel">
-          <div className="eyebrow">Integrantes</div>
-          <div className="metric-value">{totals.members}</div>
-        </article>
-        <article className="glass-card classroom-panel">
-          <div className="eyebrow">Tareas publicadas</div>
-          <div className="metric-value">{totals.assignments}</div>
-        </article>
+        <StatCard label="Comisiones" value={commissions.length} tone="var(--primary)" icon="building" helper="Espacios activos" />
+        <StatCard label="Integrantes" value={totals.members} tone="var(--accent)" icon="users" helper="Delegados y mesa" />
+        <StatCard label="Tareas publicadas" value={totals.assignments} tone="var(--success)" icon="tasks" helper="Trabajo de clase" />
       </section>
 
       {showForm ? (
         <section className="glass-card classroom-panel">
-          <div className="page-heading">
-            <div>
-              <h1 style={{ fontSize: '1.8rem' }}>Crear nueva comisión</h1>
-              <p>Define el espacio base, su código y el estilo visual del aula.</p>
+          <div className="panel-head">
+            <div className="panel-title">
+              <span className="panel-head__icon"><Icon name="plus" /></span>
+              <div>
+                <h2>Crear nueva comisión</h2>
+                <p>Define el espacio base, su código y el estilo visual del aula.</p>
+              </div>
             </div>
           </div>
 
-          <form className="form-grid" onSubmit={handleSubmit} style={{ marginTop: '1.2rem' }}>
+          <form className="form-grid" onSubmit={handleSubmit}>
             <div>
               <label className="label" htmlFor="name">Nombre</label>
               <input id="name" className="input" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required />
@@ -126,7 +130,7 @@ const Commissions = () => {
               <label className="label" htmlFor="chairName">Mesa responsable</label>
               <input id="chairName" className="input" value={form.chairName} onChange={(event) => setForm({ ...form, chairName: event.target.value })} required />
             </div>
-            <div style={{ gridColumn: '1 / -1' }}>
+            <div className="form-full">
               <label className="label" htmlFor="description">Descripción</label>
               <textarea id="description" className="input textarea" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} required />
             </div>
@@ -139,8 +143,14 @@ const Commissions = () => {
                 <option value="ember">Azul marino</option>
               </select>
             </div>
-            <div style={{ display: 'flex', alignItems: 'end' }}>
-              <button type="submit" className="btn btn-primary">Guardar comisión</button>
+            <div className="form-actions">
+              <button type="submit" className="btn btn-primary" disabled={saving}>
+                <Icon name="check" />
+                {saving ? 'Guardando...' : 'Guardar comisión'}
+              </button>
+              <button type="button" className="btn btn-muted" onClick={() => setShowForm(false)}>
+                Cancelar
+              </button>
             </div>
           </form>
         </section>
@@ -149,8 +159,11 @@ const Commissions = () => {
       <section className="classroom-grid">
         {commissions.map((commission) => (
           <Link key={commission.id} to={`/room/commissions/${commission.id}`} className="commission-card">
-            <div className="commission-card__hero" style={{ background: themeStyles[commission.theme] || themeStyles.sunrise }}>
-              <div className="pill" style={{ background: 'rgba(255,255,255,0.16)', color: '#fff' }}>{commission.code}</div>
+            <div
+              className="commission-card__hero"
+              style={{ background: themeStyles[commission.theme] || themeStyles.sunrise }}
+            >
+              <span className="pill pill-onbrand">{commission.code}</span>
               <h2>{commission.name}</h2>
               <p>{commission.section}</p>
             </div>
@@ -159,13 +172,21 @@ const Commissions = () => {
               <p>{commission.description}</p>
 
               <div className="commission-card__stats">
-                <span>{commission.members_count} integrantes</span>
-                <span>{commission.assignments_count} tareas</span>
-                <span>{commission.active_assignments} activas</span>
+                <span><Icon name="users" />{commission.members_count} integrantes</span>
+                <span><Icon name="tasks" />{commission.assignments_count} tareas</span>
+                <span><Icon name="target" />{commission.active_assignments} activas</span>
               </div>
             </div>
           </Link>
         ))}
+
+        {!commissions.length ? (
+          <div className="empty-card">
+            <Icon name="building" />
+            <strong>Todavía no hay comisiones disponibles</strong>
+            <span>Cuando la secretaría cree un espacio, aparecerá aquí.</span>
+          </div>
+        ) : null}
       </section>
     </div>
   );

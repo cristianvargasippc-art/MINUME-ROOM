@@ -1,29 +1,20 @@
 import React from 'react';
+import Icon from './Icon';
 
-const StatCard = ({ label, value, tone, helper }) => (
-  <article
-    className="glass-card"
-    style={{
-      borderRadius: '24px',
-      padding: '1.35rem',
-      position: 'relative',
-      overflow: 'hidden'
-    }}
-  >
-    <div
-      style={{
-        position: 'absolute',
-        inset: 'auto -20px -25px auto',
-        width: 96,
-        height: 96,
-        borderRadius: '999px',
-        background: tone,
-        opacity: 0.12
-      }}
-    />
-    <p style={{ margin: 0, color: 'var(--muted)', fontWeight: 600 }}>{label}</p>
-    <p style={{ margin: '0.6rem 0 0', fontSize: '2rem', fontWeight: 800, color: tone }}>{value}</p>
-    {helper ? <p style={{ margin: '0.5rem 0 0', color: 'var(--muted)', fontSize: '0.92rem' }}>{helper}</p> : null}
+/**
+ * Tarjeta de métrica del panel. `tone` acepta cualquier color CSS y alimenta
+ * la variable --stat-tone, que tiñe valor, icono y halo de forma coherente.
+ */
+const StatCard = ({ label, value, tone = 'var(--primary)', helper, icon = 'chart' }) => (
+  <article className="stat-card" style={{ '--stat-tone': tone }}>
+    <div className="stat-card__top">
+      <p className="stat-card__label">{label}</p>
+      <span className="stat-card__icon">
+        <Icon name={icon} />
+      </span>
+    </div>
+    <p className="stat-card__value">{value}</p>
+    {helper ? <p className="stat-card__helper">{helper}</p> : null}
   </article>
 );
 
