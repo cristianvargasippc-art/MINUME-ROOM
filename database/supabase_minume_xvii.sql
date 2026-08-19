@@ -1,15 +1,4 @@
--- ============================================
--- SCRIPT SQL PARA SUPABASE (POSTGRESQL)
--- ============================================
--- Ejecuta este script en el SQL Editor de Supabase Dashboard
--- https://supabase.com/dashboard/project/TU_PROJECT_REF/sql/new
 
--- Habilitar extensión UUID si la necesitas
--- CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
--- ============================================
--- TABLA: users
--- ============================================
 CREATE TABLE IF NOT EXISTS users (
   id SERIAL PRIMARY KEY,
   email VARCHAR(255) NOT NULL UNIQUE,
@@ -24,14 +13,11 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Índices para users
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 CREATE INDEX IF NOT EXISTS idx_users_commission_id ON users(commission_id);
 
--- ============================================
--- TABLA: commissions
--- ============================================
+
 CREATE TABLE IF NOT EXISTS commissions (
   id INT PRIMARY KEY,
   name VARCHAR(150) NOT NULL,
@@ -46,9 +32,7 @@ CREATE TABLE IF NOT EXISTS commissions (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- ============================================
--- TABLA: assignments
--- ============================================
+
 CREATE TABLE IF NOT EXISTS assignments (
   id SERIAL PRIMARY KEY,
   assignment_id VARCHAR(50) NOT NULL UNIQUE,
@@ -68,15 +52,12 @@ CREATE TABLE IF NOT EXISTS assignments (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Índices para assignments
 CREATE INDEX IF NOT EXISTS idx_assignments_commission_id ON assignments(commission_id);
 CREATE INDEX IF NOT EXISTS idx_assignments_assigned_to ON assignments(assigned_to);
 CREATE INDEX IF NOT EXISTS idx_assignments_status ON assignments(status);
 CREATE INDEX IF NOT EXISTS idx_assignments_deadline ON assignments(deadline);
 
--- ============================================
--- TABLA: submissions
--- ============================================
+
 CREATE TABLE IF NOT EXISTS submissions (
   id SERIAL PRIMARY KEY,
   assignment_id INT NOT NULL,
@@ -91,14 +72,12 @@ CREATE TABLE IF NOT EXISTS submissions (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Índices para submissions
+
 CREATE INDEX IF NOT EXISTS idx_submissions_assignment_id ON submissions(assignment_id);
 CREATE INDEX IF NOT EXISTS idx_submissions_submitted_by ON submissions(submitted_by);
 CREATE INDEX IF NOT EXISTS idx_submissions_status ON submissions(status);
 
--- ============================================
--- TABLA: evaluations
--- ============================================
+
 CREATE TABLE IF NOT EXISTS evaluations (
   id SERIAL PRIMARY KEY,
   submission_id INT NOT NULL,
@@ -122,9 +101,7 @@ CREATE TABLE IF NOT EXISTS evaluations (
 CREATE INDEX IF NOT EXISTS idx_evaluations_submission_id ON evaluations(submission_id);
 CREATE INDEX IF NOT EXISTS idx_evaluations_evaluated_by ON evaluations(evaluated_by);
 
--- ============================================
--- TABLA: audit_logs
--- ============================================
+
 CREATE TABLE IF NOT EXISTS audit_logs (
   id SERIAL PRIMARY KEY,
   user_id INT NOT NULL,
@@ -136,13 +113,11 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Índices para audit_logs
+
 CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);
 
--- ============================================
--- TABLA: alerts
--- ============================================
+
 CREATE TABLE IF NOT EXISTS alerts (
   id SERIAL PRIMARY KEY,
   code VARCHAR(20) NOT NULL,
@@ -157,16 +132,13 @@ CREATE TABLE IF NOT EXISTS alerts (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Índices para alerts
+
 CREATE INDEX IF NOT EXISTS idx_alerts_recipient_role ON alerts(recipient_role);
 CREATE INDEX IF NOT EXISTS idx_alerts_is_read ON alerts(is_read);
 CREATE INDEX IF NOT EXISTS idx_alerts_created_at ON alerts(created_at);
 
--- ============================================
--- DATOS INICIALES (SEED)
--- ============================================
 
--- Comisiones base
+
 INSERT INTO commissions (id, name, code, section, chair_name, description, theme, status, created_by) VALUES
 (1, 'Comisión de Educación', 'EDU-MINUME', 'Aula 01', 'Mesa Directiva de Educación', 'Espacio para debate, seguimiento y entregas de la Comisión de Educación.', 'sunrise', 'Activa', 1),
 (2, 'Comisión de Cooperación', 'COOP-MINUME', 'Aula 02', 'Mesa Directiva de Cooperación', 'Espacio para acuerdos, tareas y organización de la Comisión de Cooperación.', 'ocean', 'Activa', 1)
@@ -178,19 +150,6 @@ ON CONFLICT (id) DO UPDATE SET
   description = EXCLUDED.description,
   theme = EXCLUDED.theme;
 
--- Usuarios iniciales. Se crean BLOQUEADOS a propósito.
---
--- El hash de abajo es un bcrypt válido de una cadena aleatoria que se descartó
--- al generarla: nadie conoce la contraseña, así que ningún login puede tener
--- éxito con estas cuentas y bcrypt.compare devuelve false sin lanzar (401 limpio).
---
--- Antes NO era así: todas compartían el hash de una contraseña publicada en el
--- repositorio, con lo que cualquiera que leyera el código entraba como
--- superadmin. Si ya ejecutaste una versión anterior de este script en una base
--- de datos real, esas contraseñas siguen activas: rótalas ya.
---
--- Para asignar contraseñas reales:  node database/generate_seed_passwords.js
--- (imprime las contraseñas y el SQL listo para pegar; no guarda nada en disco).
 INSERT INTO users (email, password, full_name, role, is_active) VALUES
 ('superadmin@minume-xvii.edu.do', '$2a$12$tJkFFunbGtgnzgRtQEk4bedusrHJgUPMx7OrxXuoBKjU8CKuTbJpi', 'Superadmin MINUME XVII', 'superadmin', TRUE),
 ('secretaria@minume-xvii.edu.do', '$2a$12$tJkFFunbGtgnzgRtQEk4bedusrHJgUPMx7OrxXuoBKjU8CKuTbJpi', 'Secretaria de Control y Calidad', 'secretaria', TRUE),
@@ -200,15 +159,12 @@ INSERT INTO users (email, password, full_name, role, is_active) VALUES
 ('delegado2@minume-xvii.edu.do', '$2a$12$tJkFFunbGtgnzgRtQEk4bedusrHJgUPMx7OrxXuoBKjU8CKuTbJpi', 'Carlos Pérez', 'delegado', TRUE)
 ON CONFLICT (email) DO NOTHING;
 
--- Asignar comisiones a usuarios mesa y delegados
+
 UPDATE users SET commission_id = 1 WHERE email = 'mesa.educacion@minume-xvii.edu.do';
 UPDATE users SET commission_id = 2 WHERE email = 'mesa.cooperacion@minume-xvii.edu.do';
 UPDATE users SET commission_id = 1 WHERE email = 'delegado1@minume-xvii.edu.do';
 UPDATE users SET commission_id = 1 WHERE email = 'delegado2@minume-xvii.edu.do';
 
--- ============================================
--- VERIFICACIÓN
--- ============================================
 SELECT 'users' as tabla, count(*) as registros FROM users
 UNION ALL SELECT 'commissions', count(*) FROM commissions
 UNION ALL SELECT 'assignments', count(*) FROM assignments

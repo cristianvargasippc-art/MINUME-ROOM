@@ -153,7 +153,7 @@ const CommissionDetail = () => {
 
     try {
       const response = await api.post(`/api/commissions/${id}/people`, personForm);
-      // Solo se puede ver una vez: el backend no la vuelve a enviar.
+    
       setNewCredential({ email: response.data.email, password: response.data.temporaryPassword });
       toast.success('Integrante agregada. Copia su contraseña temporal.');
       setPersonForm(personFormInitial);
