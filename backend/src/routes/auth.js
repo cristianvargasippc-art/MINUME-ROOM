@@ -4,29 +4,52 @@ import jwt from "jsonwebtoken";
 import path from "path";
 import fs from "fs";
 import multer from "multer";
+import { randomBytes } from "crypto";
 import { fileURLToPath } from "url";
 import { db } from "../db.js";
 import { authenticate } from "../middleware/auth.js";
+import { uploadErrorHandler } from "../middleware/uploadErrors.js";
+import { removeUploadedFile } from "../utils/uploads.js";
 
 const router = express.Router();
 const uploadDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "uploads", "profiles");
 fs.mkdirSync(uploadDir, { recursive: true });
 
+// La extensión guardada sale de este mapa y nunca del nombre que envía el
+// cliente: /uploads se sirve desde el mismo origen que la app, así que dejar
+// pasar un .html o un .js permitiría ejecutar scripts con la sesión de quien
+// los abriera. SVG queda fuera a propósito, porque puede incrustar <script>.
+const AVATAR_MIME_EXTENSIONS = new Map([
+  ["image/jpeg", ".jpg"],
+  ["image/png", ".png"],
+  ["image/webp", ".webp"],
+  ["image/avif", ".avif"],
+  ["image/gif", ".gif"],
+]);
+
 const avatarUpload = multer({
   storage: multer.diskStorage({
     destination: uploadDir,
     filename: (req, file, cb) => {
-      const ext = path.extname(file.originalname || "").toLowerCase();
-      cb(null, `${req.user.id}-${Date.now()}${ext}`);
+      const ext = AVATAR_MIME_EXTENSIONS.get(file.mimetype);
+      cb(null, `${req.user.id}-${Date.now()}-${randomBytes(4).toString("hex")}${ext}`);
     },
   }),
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 5 * 1024 * 1024, files: 1 },
   fileFilter: (_req, file, cb) => {
-    if (!file.mimetype.startsWith("image/")) {
-      return cb(new Error("Solo se permiten imágenes de perfil"));
+    if (!AVATAR_MIME_EXTENSIONS.has(file.mimetype)) {
+      const error = new Error("Formato no admitido. Usa JPG, PNG, WEBP, AVIF o GIF");
+      error.status = 415;
+      return cb(error);
     }
     return cb(null, true);
   },
+});
+
+const handleAvatarUploadError = uploadErrorHandler({
+  LIMIT_FILE_SIZE: "La imagen supera el límite de 5 MB",
+  LIMIT_FILE_COUNT: "Envía una sola imagen",
+  LIMIT_UNEXPECTED_FILE: "Envía la imagen en el campo 'avatar'",
 });
 
 const serializeUser = (user) => ({
@@ -179,14 +202,21 @@ router.patch("/profile", authenticate, async (req, res) => {
   }
 });
 
-router.post("/profile/image", authenticate, avatarUpload.single("avatar"), async (req, res) => {
+router.post("/profile/image", authenticate, avatarUpload.single("avatar"), handleAvatarUploadError, async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: "Selecciona una imagen de perfil" });
   }
 
   try {
+    const { rows: [previous] } = await db.query("SELECT profile_image_url FROM users WHERE id = $1", [req.user.id]);
     const profileImageUrl = `/uploads/profiles/${req.file.filename}`;
     await db.query("UPDATE users SET profile_image_url = $1 WHERE id = $2", [profileImageUrl, req.user.id]);
+
+    // El avatar anterior ya no es alcanzable: se borra para que la carpeta no
+    // crezca sin límite.
+    if (previous?.profile_image_url !== profileImageUrl) {
+      removeUploadedFile(uploadDir, previous?.profile_image_url, "/uploads/profiles/");
+    }
 
     const { rows: [user] } = await db.query(
       "SELECT id, email, full_name, role, commission_id, profile_image_url FROM users WHERE id = $1",

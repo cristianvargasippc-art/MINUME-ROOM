@@ -79,7 +79,15 @@ app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
-app.use("/uploads", express.static(join(__dirname, "..", "uploads")));
+// Los avatares se sirven en línea porque el frontend los pinta con <img>.
+// El resto de /uploads son entregas y se fuerzan a descarga: si alguna vez se
+// colara un archivo de tipo activo, no podría ejecutarse en el origen de la app
+// (donde vive la sesión del usuario). El orden importa: la ruta más específica
+// se monta primero.
+app.use("/uploads/profiles", express.static(join(__dirname, "..", "uploads", "profiles")));
+app.use("/uploads", express.static(join(__dirname, "..", "uploads"), {
+  setHeaders: (res) => res.setHeader("Content-Disposition", "attachment"),
+}));
 
 // Limitador SOLO para la API (no para archivos estáticos ni Socket.IO).
 // El chequeo de salud queda excluido para no gastar cupo con monitoreo.

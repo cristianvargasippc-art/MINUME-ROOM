@@ -45,14 +45,24 @@ Luego abre `http://localhost:3000`. El servidor crea las tablas y siembra los da
 
 Comprobación rápida: `GET /api/health` → `{"status":"OK","database":"connected"}`.
 
-## Credenciales de prueba
+## Cuentas iniciales
 
-Todas con contraseña `Minume2025!`:
+El esquema crea estas cuentas **bloqueadas**: su hash no corresponde a ninguna
+contraseña conocida, así que hay que asignarles una antes de poder entrar.
 
 - `superadmin@minume-xvii.edu.do`
 - `secretaria@minume-xvii.edu.do`
 - `mesa.educacion@minume-xvii.edu.do` · `mesa.cooperacion@minume-xvii.edu.do`
 - `delegado1@minume-xvii.edu.do` · `delegado2@minume-xvii.edu.do`
+
+Para asignarles contraseña:
+
+```bash
+node database/generate_seed_passwords.js
+```
+
+Imprime contraseñas nuevas y el SQL listo para pegar en Supabase. Guárdalas en un
+gestor de contraseñas: no se pueden recuperar, solo volver a rotar.
 
 ## Modificar la interfaz
 

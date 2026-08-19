@@ -2,6 +2,7 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import { db } from "../db.js";
 import { authenticate, authorize } from "../middleware/auth.js";
+import { generateTemporaryPassword } from "../utils/password.js";
 
 const router = express.Router();
 
@@ -139,21 +140,26 @@ router.post("/:id/people", authenticate, authorize("superadmin", "secretaria", "
   }
 
   try {
-    const tempPasswordHash = await bcrypt.hash("Minume2025!", 12);
+    // Contraseña distinta para cada alta. Se devuelve en claro una sola vez, a
+    // quien está creando la cuenta, para que pueda entregarla a su titular; no
+    // se guarda en ningún sitio más que como hash.
+    const temporaryPassword = generateTemporaryPassword();
+    const tempPasswordHash = await bcrypt.hash(temporaryPassword, 12);
+    const normalizedEmail = String(email).trim().toLowerCase();
 
     await db.query(
       `INSERT INTO users (email, password, full_name, role, commission_id, is_active)
        VALUES ($1, $2, $3, $4, $5, TRUE)`,
-      [email, tempPasswordHash, fullName, role, commissionId]
+      [normalizedEmail, tempPasswordHash, fullName, role, commissionId]
     );
 
     const { rows } = await db.query(
       `SELECT id, full_name, email, role, commission_id, is_active, created_at
        FROM users WHERE email = $1`,
-      [email]
+      [normalizedEmail]
     );
 
-    return res.status(201).json(rows[0]);
+    return res.status(201).json({ ...rows[0], temporaryPassword });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }

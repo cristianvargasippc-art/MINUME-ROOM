@@ -178,15 +178,26 @@ ON CONFLICT (id) DO UPDATE SET
   description = EXCLUDED.description,
   theme = EXCLUDED.theme;
 
--- Usuarios de prueba (contraseña: Minume2025! - hash bcrypt)
--- Generado con: bcrypt.hashSync('Minume2025!', 12)
+-- Usuarios iniciales. Se crean BLOQUEADOS a propósito.
+--
+-- El hash de abajo es un bcrypt válido de una cadena aleatoria que se descartó
+-- al generarla: nadie conoce la contraseña, así que ningún login puede tener
+-- éxito con estas cuentas y bcrypt.compare devuelve false sin lanzar (401 limpio).
+--
+-- Antes NO era así: todas compartían el hash de una contraseña publicada en el
+-- repositorio, con lo que cualquiera que leyera el código entraba como
+-- superadmin. Si ya ejecutaste una versión anterior de este script en una base
+-- de datos real, esas contraseñas siguen activas: rótalas ya.
+--
+-- Para asignar contraseñas reales:  node database/generate_seed_passwords.js
+-- (imprime las contraseñas y el SQL listo para pegar; no guarda nada en disco).
 INSERT INTO users (email, password, full_name, role, is_active) VALUES
-('superadmin@minume-xvii.edu.do', '$2a$12$TyswpA71t9/OiFwiAn40ieiwCVzXd9jsjs.HCBbqK2KuWLmgt9B8i', 'Superadmin MINUME XVII', 'superadmin', TRUE),
-('secretaria@minume-xvii.edu.do', '$2a$12$TyswpA71t9/OiFwiAn40ieiwCVzXd9jsjs.HCBbqK2KuWLmgt9B8i', 'Secretaria de Control y Calidad', 'secretaria', TRUE),
-('mesa.educacion@minume-xvii.edu.do', '$2a$12$TyswpA71t9/OiFwiAn40ieiwCVzXd9jsjs.HCBbqK2KuWLmgt9B8i', 'Mesa Directiva - Educación', 'mesa', TRUE),
-('mesa.cooperacion@minume-xvii.edu.do', '$2a$12$TyswpA71t9/OiFwiAn40ieiwCVzXd9jsjs.HCBbqK2KuWLmgt9B8i', 'Mesa Directiva - Cooperación', 'mesa', TRUE),
-('delegado1@minume-xvii.edu.do', '$2a$12$TyswpA71t9/OiFwiAn40ieiwCVzXd9jsjs.HCBbqK2KuWLmgt9B8i', 'Ana María López', 'delegado', TRUE),
-('delegado2@minume-xvii.edu.do', '$2a$12$TyswpA71t9/OiFwiAn40ieiwCVzXd9jsjs.HCBbqK2KuWLmgt9B8i', 'Carlos Pérez', 'delegado', TRUE)
+('superadmin@minume-xvii.edu.do', '$2a$12$tJkFFunbGtgnzgRtQEk4bedusrHJgUPMx7OrxXuoBKjU8CKuTbJpi', 'Superadmin MINUME XVII', 'superadmin', TRUE),
+('secretaria@minume-xvii.edu.do', '$2a$12$tJkFFunbGtgnzgRtQEk4bedusrHJgUPMx7OrxXuoBKjU8CKuTbJpi', 'Secretaria de Control y Calidad', 'secretaria', TRUE),
+('mesa.educacion@minume-xvii.edu.do', '$2a$12$tJkFFunbGtgnzgRtQEk4bedusrHJgUPMx7OrxXuoBKjU8CKuTbJpi', 'Mesa Directiva - Educación', 'mesa', TRUE),
+('mesa.cooperacion@minume-xvii.edu.do', '$2a$12$tJkFFunbGtgnzgRtQEk4bedusrHJgUPMx7OrxXuoBKjU8CKuTbJpi', 'Mesa Directiva - Cooperación', 'mesa', TRUE),
+('delegado1@minume-xvii.edu.do', '$2a$12$tJkFFunbGtgnzgRtQEk4bedusrHJgUPMx7OrxXuoBKjU8CKuTbJpi', 'Ana María López', 'delegado', TRUE),
+('delegado2@minume-xvii.edu.do', '$2a$12$tJkFFunbGtgnzgRtQEk4bedusrHJgUPMx7OrxXuoBKjU8CKuTbJpi', 'Carlos Pérez', 'delegado', TRUE)
 ON CONFLICT (email) DO NOTHING;
 
 -- Asignar comisiones a usuarios mesa y delegados

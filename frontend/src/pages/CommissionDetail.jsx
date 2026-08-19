@@ -50,6 +50,7 @@ const CommissionDetail = () => {
   const [loading, setLoading] = useState(true);
   const [assignmentForm, setAssignmentForm] = useState(assignmentFormInitial);
   const [personForm, setPersonForm] = useState(personFormInitial);
+  const [newCredential, setNewCredential] = useState(null);
   const [rubricRows, setRubricRows] = useState(rubricInitial);
   const [eventForm, setEventForm] = useState(eventInitial);
   const [forumForm, setForumForm] = useState(forumInitial);
@@ -144,8 +145,10 @@ const CommissionDetail = () => {
     event.preventDefault();
 
     try {
-      await api.post(`/api/commissions/${id}/people`, personForm);
-      toast.success('Integrante agregado correctamente');
+      const response = await api.post(`/api/commissions/${id}/people`, personForm);
+      // Solo se puede ver una vez: el backend no la vuelve a enviar.
+      setNewCredential({ email: response.data.email, password: response.data.temporaryPassword });
+      toast.success('Integrante agregada. Copia su contraseña temporal.');
       setPersonForm(personFormInitial);
       loadCommission();
     } catch (error) {
@@ -501,9 +504,24 @@ const CommissionDetail = () => {
             <div className="page-heading">
               <div>
                 <h1 style={{ fontSize: '1.9rem' }}>Agregar integrante</h1>
-                <p>La credencial inicial queda en `Minume2025!` para nuevas cuentas.</p>
+                <p>Al crear la cuenta se genera una contraseña temporal única. Se muestra una sola vez: cópiala y entrégasela a su titular.</p>
               </div>
             </div>
+
+            {newCredential ? (
+              <div className="glass-card" style={{ marginTop: '1rem', padding: '1rem', borderLeft: '4px solid #38bdf8' }}>
+                <strong>Contraseña temporal de {newCredential.email}</strong>
+                <p style={{ margin: '0.5rem 0' }}>
+                  <code style={{ fontSize: '1.1rem', userSelect: 'all' }}>{newCredential.password}</code>
+                </p>
+                <p style={{ margin: 0, opacity: 0.8 }}>
+                  Anótala ahora: no se puede volver a consultar. Pídele que la cambie al entrar.
+                </p>
+                <button type="button" className="btn" style={{ marginTop: '0.75rem' }} onClick={() => setNewCredential(null)}>
+                  Ya la copié
+                </button>
+              </div>
+            ) : null}
 
             {canManagePeople ? (
               <form className="form-grid" onSubmit={submitPerson} style={{ marginTop: '1rem' }}>

@@ -18,10 +18,28 @@ datos en Supabase (PostgreSQL).
    - Usa el **Session Pooler** (IPv4). La conexión directa `db.<ref>.supabase.co`
      es solo IPv6 y Hostinger no la alcanza.
 3. **SQL Editor** → ejecuta `database/supabase_minume_xvii.sql` para crear las
-   tablas y **los usuarios de prueba**.
-   - Las tablas se crean solas al arrancar (`bootstrap.js`), pero **los usuarios
-     de login NO se siembran solos**: hay que correr el SQL o nadie podrá entrar.
-   - Si necesitas restablecer contraseñas seed: `database/reset_seed_passwords.sql`.
+   tablas y las cuentas iniciales.
+   - Las tablas se crean solas al arrancar (`bootstrap.js`), pero **las cuentas
+     de login NO se siembran solas**: hay que correr el SQL o nadie podrá entrar.
+   - Se crean **bloqueadas a propósito**: su hash no corresponde a ninguna
+     contraseña conocida, así que todavía no se puede entrar con ellas.
+
+4. **Asigna contraseñas** (obligatorio: sin esto nadie puede iniciar sesión):
+
+   ```bash
+   node database/generate_seed_passwords.js
+   ```
+
+   Imprime contraseñas nuevas y las sentencias `UPDATE` ya rellenadas. Pega el SQL
+   en el editor de Supabase y **guarda las contraseñas en un gestor**: no se
+   pueden recuperar, solo volver a rotar. Guía en
+   `database/reset_seed_passwords.sql`.
+
+> ⚠️ **Si ya desplegaste una versión anterior a esta:** las cuentas iniciales
+> compartían el hash de una contraseña que estaba escrita en este repositorio, y
+> el alta de integrantes asignaba esa misma contraseña a cada cuenta nueva.
+> Cualquiera con acceso al repositorio podía entrar como `superadmin` o como
+> cualquier integrante. **Rota todas las contraseñas ya.**
 
 ---
 
@@ -76,7 +94,8 @@ openssl rand -base64 32
 
 1. `https://minume.celider10.digital/api/health` →
    `{"status":"OK","database":"connected"}`.
-2. Inicia sesión con `superadmin@minume-xvii.edu.do` / `Minume2025!`.
+2. Inicia sesión con `superadmin@minume-xvii.edu.do` y la contraseña que generaste
+   en el paso 1.4.
 3. Si sale `"database":"disconnected"` → revisa `DATABASE_URL` (usa el **pooler**,
    puerto 5432, y verifica usuario/contraseña).
 4. Si el login del navegador falla por CORS → revisa que `APP_URL` sea

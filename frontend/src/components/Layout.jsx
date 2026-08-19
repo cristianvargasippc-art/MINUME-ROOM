@@ -132,7 +132,7 @@ const Layout = () => {
             <button type="button" className="avatar-button" onClick={() => fileInputRef.current?.click()} title="Cambiar imagen de perfil">
               {avatarUrl ? <img src={avatarUrl} alt={user?.fullName || 'Perfil'} /> : <span>{initials}</span>}
             </button>
-            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarUpload} hidden />
+            <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/avif,image/gif" onChange={handleAvatarUpload} hidden />
             <div>
               <p>{user?.fullName}</p>
               <span>{user?.role}</span>

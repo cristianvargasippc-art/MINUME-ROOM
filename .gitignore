@@ -9,6 +9,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 backend/uploads/
+backend/src/uploads/
 *.log
 backend/*.log
 frontend/*.log

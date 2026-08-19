@@ -241,7 +241,7 @@ const AssignmentDetail = () => {
                 <h2>{t('submitDocument')}</h2>
                 <form onSubmit={handleSubmit} className="submission-form">
                   <div>
-                    <input type="file" accept="*/*" onChange={(event) => setSelectedFile(event.target.files[0] || null)} />
+                    <input type="file" accept=".pdf,.doc,.docx,.odt,.ppt,.pptx,.odp,.xls,.xlsx,.ods,.csv" onChange={(event) => setSelectedFile(event.target.files[0] || null)} />
                     <p>{t('submitDocumentCopy')}</p>
                   </div>
                   <button type="submit" className="btn btn-primary" disabled={uploading}>

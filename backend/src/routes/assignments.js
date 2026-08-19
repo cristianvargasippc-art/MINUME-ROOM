@@ -2,23 +2,64 @@ import express from "express";
 import path from "path";
 import fs from "fs";
 import multer from "multer";
+import { randomBytes } from "crypto";
 import { fileURLToPath } from "url";
 import { db } from "../db.js";
 import { authenticate, authorize } from "../middleware/auth.js";
 import { buildAssignmentScope } from "../utils/scope.js";
+import { uploadErrorHandler } from "../middleware/uploadErrors.js";
+import { removeUploadedFile } from "../utils/uploads.js";
 
 const uploadDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "uploads");
 fs.mkdirSync(uploadDir, { recursive: true });
 
+// La extensión guardada sale de este mapa y nunca del nombre que envía el
+// cliente: /uploads se sirve desde el mismo origen y el frontend enlaza las
+// entregas con <a href>, así que aceptar un .html permitiría ejecutar scripts
+// con la sesión de quien abriera la entrega. Los formatos siguen a
+// expected_product del esquema (PDF, Presentacion, Planilla).
+const SUBMISSION_MIME_EXTENSIONS = new Map([
+  ["application/pdf", ".pdf"],
+  ["application/msword", ".doc"],
+  ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", ".docx"],
+  ["application/vnd.oasis.opendocument.text", ".odt"],
+  ["application/vnd.ms-powerpoint", ".ppt"],
+  ["application/vnd.openxmlformats-officedocument.presentationml.presentation", ".pptx"],
+  ["application/vnd.oasis.opendocument.presentation", ".odp"],
+  ["application/vnd.ms-excel", ".xls"],
+  ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ".xlsx"],
+  ["application/vnd.oasis.opendocument.spreadsheet", ".ods"],
+  ["text/csv", ".csv"],
+]);
+
+// El nombre original se conserva en submissions.file_name para mostrarlo; aquí
+// solo importa que el fichero en disco tenga una extensión de confianza.
 const storage = multer.diskStorage({
   destination: uploadDir,
   filename: (_req, file, cb) => {
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    cb(null, `${uniqueSuffix}-${file.originalname}`);
+    const ext = SUBMISSION_MIME_EXTENSIONS.get(file.mimetype);
+    cb(null, `${Date.now()}-${randomBytes(4).toString("hex")}${ext}`);
   },
 });
 
-const upload = multer({ storage, limits: { fileSize: 30 * 1024 * 1024 } });
+const upload = multer({
+  storage,
+  limits: { fileSize: 30 * 1024 * 1024, files: 1 },
+  fileFilter: (_req, file, cb) => {
+    if (!SUBMISSION_MIME_EXTENSIONS.has(file.mimetype)) {
+      const error = new Error("Formato no admitido. Envía un PDF, documento, presentación o planilla");
+      error.status = 415;
+      return cb(error);
+    }
+    return cb(null, true);
+  },
+});
+
+const handleSubmissionUploadError = uploadErrorHandler({
+  LIMIT_FILE_SIZE: "El archivo supera el límite de 30 MB",
+  LIMIT_FILE_COUNT: "Envía un solo archivo",
+  LIMIT_UNEXPECTED_FILE: "Envía el archivo en el campo 'document'",
+});
 
 const router = express.Router();
 
@@ -180,7 +221,7 @@ router.get("/:id/submissions", authenticate, async (req, res) => {
   }
 });
 
-router.post("/:id/submissions", authenticate, upload.single("document"), async (req, res) => {
+router.post("/:id/submissions", authenticate, upload.single("document"), handleSubmissionUploadError, async (req, res) => {
   try {
     const assignmentId = Number(req.params.id);
     const { rows: assignmentRows } = await db.query("SELECT * FROM assignments WHERE id = $1", [assignmentId]);
@@ -201,7 +242,7 @@ router.post("/:id/submissions", authenticate, upload.single("document"), async (
 
     const fileUrl = `/uploads/${req.file.filename}`;
     const { rows: existingSubmissions } = await db.query(
-      "SELECT id FROM submissions WHERE assignment_id = $1 AND submitted_by = $2 ORDER BY submitted_at DESC LIMIT 1",
+      "SELECT id, file_url FROM submissions WHERE assignment_id = $1 AND submitted_by = $2 ORDER BY submitted_at DESC LIMIT 1",
       [assignmentId, req.user.id]
     );
 
@@ -209,10 +250,18 @@ router.post("/:id/submissions", authenticate, upload.single("document"), async (
 
     if (existingSubmissions.length) {
       submissionId = existingSubmissions[0].id;
+      const replacedFileUrl = existingSubmissions[0].file_url;
+
       await db.query(
         `UPDATE submissions SET file_url = $1, file_name = $2, file_size = $3, status = 'Entregada', submitted_at = NOW(), version = version + 1 WHERE id = $4`,
         [fileUrl, req.file.originalname, req.file.size, submissionId]
       );
+
+      // La fila se actualiza en sitio, así que el fichero sustituido ya no se
+      // puede abrir desde la app: se borra para no dejarlo ocupando disco.
+      if (replacedFileUrl !== fileUrl) {
+        removeUploadedFile(uploadDir, replacedFileUrl, "/uploads/");
+      }
     } else {
       const insertResult = await db.query(
         `INSERT INTO submissions (assignment_id, submitted_by, file_url, file_name, file_size, status, submitted_at)
